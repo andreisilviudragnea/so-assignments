@@ -46,8 +46,8 @@ static VOID PrintLastError(const PCHAR message)
 /* error printing macro */
 #define ERR(call_description)				\
 	do {						\
-		fprintf(stderr, "(%s, %d): ",		\
-			__FILE__, __LINE__);		\
+		fprintf(stderr, "[%s(), %s:%d] ",		\
+			__FUNCTION__, __FILE__, __LINE__);		\
 		perror(call_description);		\
 	} while (0)
 
