@@ -18,12 +18,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "aws.h"
 #include "util.h"
 #include "debug.h"
 #include "sock_util.h"
 #include "w_epoll.h"
-
-#define ECHO_LISTEN_PORT		42424
 
 
 /* server socket file descriptor */
@@ -238,15 +237,14 @@ int main(void)
 	DIE(epollfd < 0, "w_epoll_create");
 
 	/* create server socket */
-	listenfd = tcp_create_listener(ECHO_LISTEN_PORT,
-		DEFAULT_LISTEN_BACKLOG);
+	listenfd = tcp_create_listener(AWS_LISTEN_PORT, DEFAULT_LISTEN_BACKLOG);
 	DIE(listenfd < 0, "tcp_create_listener");
 
 	rc = w_epoll_add_fd_in(epollfd, listenfd);
 	DIE(rc < 0, "w_epoll_add_fd_in");
 
 	dlog(LOG_INFO, "Server waiting for connections on port %d\n",
-		ECHO_LISTEN_PORT);
+		AWS_LISTEN_PORT);
 
 	/* server main loop */
 	while (1) {
