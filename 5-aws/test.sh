@@ -8,5 +8,4 @@ cp aws ../checker-lin
 
 cd ../checker-lin
 make -f Makefile.checker
-rm aws
 cd ..
