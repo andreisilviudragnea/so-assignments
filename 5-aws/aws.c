@@ -237,14 +237,20 @@ static void send_message(struct connection *conn)
 	}
 
 	if (conn->state == STATE_SENDING_ERROR_HEADERS) {
-		bytes_sent = send(conn->sockfd,
-						  conn->send_buffer.data + conn->send_buffer.offset,
-						  conn->send_buffer.length - conn->send_buffer.offset, 0);
-		dlog(LOG_INFO, "Sent %ld error headers bytes\n", bytes_sent);
-		if (bytes_sent <= 0) {
-			goto remove_connection;
+		while (1) {
+			bytes_sent = send(conn->sockfd,
+							  conn->send_buffer.data + conn->send_buffer.offset,
+							  conn->send_buffer.length - conn->send_buffer.offset,
+							  MSG_DONTWAIT);
+			if (bytes_sent == -1 && errno == EWOULDBLOCK) {
+				break;
+			}
+			dlog(LOG_INFO, "Sent %ld error headers bytes\n", bytes_sent);
+			if (bytes_sent <= 0) {
+				goto remove_connection;
+			}
+			conn->send_buffer.offset += bytes_sent;
 		}
-		conn->send_buffer.offset += bytes_sent;
 		if (conn->send_buffer.offset == conn->send_buffer.length) {
 			conn->state = STATE_SENT_FILE;
 			dlog(LOG_INFO, "Sent all file bytes\n");
@@ -255,17 +261,23 @@ static void send_message(struct connection *conn)
 	}
 
 	if (conn->state == STATE_SENDING_HEADERS) {
-		bytes_sent = send(conn->sockfd,
-						  conn->send_buffer.data + conn->send_buffer.offset,
-						  conn->send_buffer.length - conn->send_buffer.offset, 0);
-		dlog(LOG_INFO, "Sent %ld headers bytes\n", bytes_sent);
-		if (bytes_sent <= 0) {
-			goto remove_connection;
-		}
-		conn->send_buffer.offset += bytes_sent;
-		if (conn->send_buffer.offset == conn->send_buffer.length) {
-			conn->state = STATE_SENDING_FILE;
-			return;
+		while (1) {
+			bytes_sent = send(conn->sockfd,
+							  conn->send_buffer.data + conn->send_buffer.offset,
+							  conn->send_buffer.length - conn->send_buffer.offset,
+							  MSG_DONTWAIT);
+			if (bytes_sent == -1 && errno == EWOULDBLOCK) {
+				break;
+			}
+			dlog(LOG_INFO, "Sent %ld headers bytes\n", bytes_sent);
+			if (bytes_sent < 0) {
+				goto remove_connection;
+			}
+			conn->send_buffer.offset += bytes_sent;
+			if (conn->send_buffer.offset == conn->send_buffer.length) {
+				conn->state = STATE_SENDING_FILE;
+				return;
+			}
 		}
 	}
 
