@@ -7,6 +7,6 @@ add_subdirectory(util)
 add_subdirectory(checker-lin)
 
 add_executable(aws aws.c $<TARGET_OBJECTS:sock_util.o> $<TARGET_OBJECTS:http_parser.o> util/aws.h)
-#target_compile_options(aws PRIVATE -g)
+#target_compile_options(aws PRIVATE -O3)
 target_compile_definitions(aws PRIVATE -DDEBUG -DLOG_LEVEL=LOG_DEBUG)
 target_include_directories(aws PRIVATE util util/lin util/http-parser)

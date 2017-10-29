@@ -72,6 +72,7 @@ struct connection {
 	enum connection_state state;
 	http_parser request_parser;
 	struct path_buffer path_buffer;
+	char in_epoll;
 };
 
 /*
@@ -93,6 +94,7 @@ static struct connection *connection_create(int sockfd)
     conn->request_parser.data = conn;
 
 	conn->state = STATE_RECEIVING_REQUEST;
+	conn->in_epoll = 0;
 
 	return conn;
 }
@@ -167,8 +169,11 @@ static void handle_receiving_request(struct connection *conn)
 		dlog(LOG_INFO, "Received %ld\n", ret);
 		dlog(LOG_INFO, "Buffer content:\n--\n%s\n--\n", conn->recv_buffer.data);
 		if (ret == -1 && errno == EWOULDBLOCK) {
-			ret = w_epoll_add_ptr_in(epollfd, conn->sockfd, conn);
-			DIE(ret < 0, "w_epoll_add_in");
+			if (!conn->in_epoll) {
+				ret = w_epoll_add_ptr_in(epollfd, conn->sockfd, conn);
+				DIE(ret < 0, "w_epoll_add_in");
+				conn->in_epoll = 1;
+			}
 			return;
 		}
 		if (ret == 0) {
