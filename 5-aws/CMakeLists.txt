@@ -10,3 +10,4 @@ add_executable(aws aws.c $<TARGET_OBJECTS:sock_util.o> $<TARGET_OBJECTS:http_par
 #target_compile_options(aws PRIVATE -O3)
 target_compile_definitions(aws PRIVATE -DDEBUG -DLOG_LEVEL=LOG_DEBUG)
 target_include_directories(aws PRIVATE util util/lin util/http-parser)
+target_link_libraries(aws -laio)

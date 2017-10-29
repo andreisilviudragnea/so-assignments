@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <libgen.h>
 #include <errno.h>
+#include <libaio.h>
 
 #include "aws.h"
 #include "util.h"
@@ -55,6 +56,7 @@ struct connection {
 	http_parser request_parser;
 	struct path_buffer path_buffer;
 	char in_epoll;
+	io_context_t ctx;
 };
 
 static struct connection *connection_create(int sockfd)
@@ -74,7 +76,19 @@ static struct connection *connection_create(int sockfd)
 	conn->state = STATE_RECEIVING_REQUEST;
 	conn->in_epoll = 0;
 
+	int ret = io_setup(1, &conn->ctx);
+	DIE(ret < 0, "io_setup");
+
 	return conn;
+}
+
+static void connection_remove(struct connection *conn)
+{
+	int ret = io_destroy(conn->ctx);
+	DIE(ret < 0, "io_destroy");
+	ret = close(conn->sockfd);
+	DIE(ret < 0, "close");
+	free(conn);
 }
 
 static int on_path(http_parser *p, const char *buf, size_t len)
@@ -113,12 +127,6 @@ static http_parser_settings settings_on_path = {
 		.on_headers_complete = on_headers_complete,
 		.on_message_complete = NULL,
 };
-
-static void connection_remove(struct connection *conn)
-{
-	close(conn->sockfd);
-	free(conn);
-}
 
 static void handle_receiving_request(struct connection *conn)
 {
