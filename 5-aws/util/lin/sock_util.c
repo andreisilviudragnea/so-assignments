@@ -90,6 +90,13 @@ int tcp_create_listener(unsigned short port, int backlog)
 	listenfd = socket(PF_INET, SOCK_STREAM, 0);
 	DIE(listenfd < 0, "socket");
 
+	rc = fcntl(listenfd, F_GETFL);
+	DIE(rc < 0, "fcntl");
+
+	rc |= O_NONBLOCK;
+	rc = fcntl(listenfd, F_SETFL, rc);
+	DIE(rc < 0, "fcntl");
+
 	sock_opt = 1;
 	rc = setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR,
 				&sock_opt, sizeof(int));

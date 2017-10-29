@@ -24,7 +24,7 @@ static inline int w_epoll_add_fd_in(int epollfd, int fd)
 {
 	struct epoll_event ev;
 
-	ev.events = EPOLLIN;
+	ev.events = EPOLLIN | EPOLLET;
 	ev.data.fd = fd;
 
 	return epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev);
@@ -99,7 +99,7 @@ static inline int w_epoll_add_ptr_in(int epollfd, int fd, void *ptr)
 {
 	struct epoll_event ev;
 
-	ev.events = EPOLLIN;
+	ev.events = EPOLLIN | EPOLLET;
 	ev.data.ptr = ptr;
 
 	return epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev);
@@ -129,7 +129,7 @@ static inline int w_epoll_update_ptr_in(int epollfd, int fd, void *ptr)
 {
 	struct epoll_event ev;
 
-	ev.events = EPOLLIN;
+	ev.events = EPOLLIN | EPOLLET;
 	ev.data.ptr = ptr;
 
 	return epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &ev);
@@ -149,7 +149,7 @@ static inline int w_epoll_update_ptr_inout(int epollfd, int fd, void *ptr)
 {
 	struct epoll_event ev;
 
-	ev.events = EPOLLIN | EPOLLOUT;
+	ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
 	ev.data.ptr = ptr;
 
 	return epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &ev);
@@ -164,7 +164,7 @@ static inline int w_epoll_remove_ptr(int epollfd, int fd, void *ptr)
 	 * It has to be passed to epoll as a non-NULL argument for
 	 * pre-2.6.9 kernels.
 	 */
-	ev.events = EPOLLIN;
+	ev.events = EPOLLIN | EPOLLET;
 	ev.data.ptr = ptr;
 
 	return epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, &ev);
