@@ -22,6 +22,7 @@
 #include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <libgen.h>
+#include <errno.h>
 
 #include "aws.h"
 #include "util.h"
@@ -43,6 +44,7 @@ enum connection_state {
 	STATE_RECEIVING_REQUEST,
 	STATE_RECEIVED_REQUEST,
 	STATE_SENDING_HEADERS,
+	STATE_SENDING_ERROR_HEADERS,
 	STATE_SENDING_FILE,
 	STATE_SENT_FILE
 };
@@ -209,21 +211,47 @@ static void send_message(struct connection *conn)
 		if (conn->filefd < 0) {
 			ERR("open");
 			dlog(LOG_ERR, "open: %s\n", open_buf);
-			goto remove_connection;
+			rc = snprintf(conn->send_buffer.data, BUFSIZ,
+						  "HTTP/1.0 404 Not found\r\n\r\n");
+			if (rc < 0) {
+				ERR("snprintf");
+				goto remove_connection;
+			}
+			conn->send_buffer.length = (size_t) rc;
+			conn->state = STATE_SENDING_ERROR_HEADERS;
+		} else {
+			conn->file_size = (size_t) get_file_size(conn->filefd);
+			conn->file_offset = 0;
+			rc = snprintf(conn->send_buffer.data, BUFSIZ, "HTTP/1.0 200 OK\r\n"
+					"Content-Length: %zu\r\n"
+					"Connection: close\r\n"
+					"\r\n", conn->file_size);
+			if (rc < 0) {
+				ERR("snprintf");
+				goto remove_connection;
+			}
+			conn->send_buffer.length = (size_t) rc;
+			conn->state = STATE_SENDING_HEADERS;
 		}
-		conn->file_size = (size_t) get_file_size(conn->filefd);
-		conn->file_offset = 0;
-		rc = snprintf(conn->send_buffer.data, BUFSIZ, "HTTP/1.0 200 OK\r\n"
-				"Content-Length: %zu\r\n"
-				"Connection: close\r\n"
-				"\r\n", conn->file_size);
-		if (rc < 0) {
-			ERR("snprintf");
-			goto remove_connection;
-		}
-		conn->send_buffer.length = (size_t) rc;
-		conn->state = STATE_SENDING_HEADERS;
 		dlog(LOG_INFO, "Preparing to send headers\n");
+	}
+
+	if (conn->state == STATE_SENDING_ERROR_HEADERS) {
+		bytes_sent = send(conn->sockfd,
+						  conn->send_buffer.data + conn->send_buffer.offset,
+						  conn->send_buffer.length - conn->send_buffer.offset, 0);
+		dlog(LOG_INFO, "Sent %ld error headers bytes\n", bytes_sent);
+		if (bytes_sent <= 0) {
+			goto remove_connection;
+		}
+		conn->send_buffer.offset += bytes_sent;
+		if (conn->send_buffer.offset == conn->send_buffer.length) {
+			conn->state = STATE_SENT_FILE;
+			dlog(LOG_INFO, "Sent all file bytes\n");
+			rc = w_epoll_update_ptr_in(epollfd, conn->sockfd, conn);
+			DIE(rc < 0, "w_epoll_update_ptr_in");
+			return;
+		}
 	}
 
 	if (conn->state == STATE_SENDING_HEADERS) {
@@ -272,27 +300,31 @@ static void handle_receiving_request(struct connection *conn)
 {
 	ssize_t ret;
 
-	ret = recv(conn->sockfd, conn->recv_buffer.data + conn->recv_buffer.offset,
-			   BUFSIZ - conn->recv_buffer.offset, 0);
-	dlog(LOG_INFO, "Received %ld\n", ret);
-	dlog(LOG_INFO, "Buffer content:\n--\n%s\n--\n", conn->recv_buffer.data);
-	DIE(ret == -1, "recv");
-	if (ret == 0) {
-		dlog(LOG_INFO, "Closed connection\n");
-		ret = w_epoll_remove_ptr(epollfd, conn->sockfd, conn);
-		DIE(ret < 0, "w_epoll_remove_ptr");
+	while (1) {
+		ret = recv(conn->sockfd, conn->recv_buffer.data + conn->recv_buffer.offset,
+				   BUFSIZ - conn->recv_buffer.offset, MSG_DONTWAIT);
+		dlog(LOG_INFO, "Received %ld\n", ret);
+		dlog(LOG_INFO, "Buffer content:\n--\n%s\n--\n", conn->recv_buffer.data);
+		if (ret == -1 && errno == EWOULDBLOCK) {
+			break;
+		}
+		DIE(ret == -1, "recv");
+		if (ret == 0) {
+			dlog(LOG_INFO, "Closed connection\n");
+			ret = w_epoll_remove_ptr(epollfd, conn->sockfd, conn);
+			DIE(ret < 0, "w_epoll_remove_ptr");
 
-		/* remove current connection */
-		connection_remove(conn);
-		return;
+			/* remove current connection */
+			connection_remove(conn);
+			return;
+		}
+		size_t num_parsed_bytes = http_parser_execute(&conn->request_parser,
+													  &settings_on_path,
+													  conn->recv_buffer.data + conn->recv_buffer.offset,
+													  (size_t) ret);
+		dlog(LOG_INFO, "Parsed %zu bytes\n", num_parsed_bytes);
+		conn->recv_buffer.offset += ret;
 	}
-
-	size_t num_parsed_bytes = http_parser_execute(&conn->request_parser,
-												  &settings_on_path,
-												  conn->recv_buffer.data + conn->recv_buffer.offset,
-												  (size_t) ret);
-	conn->recv_buffer.offset += ret;
-	dlog(LOG_INFO, "Parsed %zu bytes\n", num_parsed_bytes);
 
 	if (conn->state == STATE_RECEIVED_REQUEST) {
 		dlog(LOG_INFO, "Received all request bytes.\n");
@@ -305,11 +337,9 @@ int main(void)
 {
 	int rc;
 
-	/* init multiplexing */
 	epollfd = w_epoll_create();
 	DIE(epollfd < 0, "w_epoll_create");
 
-	/* create server socket */
 	listenfd = tcp_create_listener(AWS_LISTEN_PORT, DEFAULT_LISTEN_BACKLOG);
 	DIE(listenfd < 0, "tcp_create_listener");
 
@@ -319,22 +349,13 @@ int main(void)
 	dlog(LOG_INFO, "Server waiting for connections on port %d\n",
 		AWS_LISTEN_PORT);
 
-	/* server main loop */
 	while (1) {
 		struct epoll_event rev;
 
-		/* wait for events */
 		rc = w_epoll_wait_infinite(epollfd, &rev);
 		DIE(rc < 0, "w_epoll_wait_infinite");
 
-		/*
-		 * switch event types; consider
-		 *   - new connection requests (on server socket)
-		 *   - socket communication (on connection sockets)
-		 */
-
 		if (rev.data.fd == listenfd) {
-			dlog(LOG_DEBUG, "New connection\n");
 			if (rev.events & EPOLLIN)
 				handle_new_connection();
 		} else {
