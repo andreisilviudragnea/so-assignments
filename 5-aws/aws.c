@@ -1,14 +1,3 @@
-/*
- * epoll-based echo server. Uses epoll(7) to multiplex connections.
- *
- * TODO:
- *  - block data receiving when receive buffer is full (use circular buffers)
- *  - do not copy receive buffer into send buffer when send buffer data is
- *      still valid
- *
- * 2011-2017, Operating Systems
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,16 +20,11 @@
 #include "w_epoll.h"
 
 
-/* server socket file descriptor */
 static int listenfd;
 
-/* epoll file descriptor */
 static int epollfd;
 
 enum connection_state {
-	STATE_DATA_RECEIVED,
-	STATE_DATA_SENT,
-	STATE_CONNECTION_CLOSED,
 	STATE_RECEIVING_REQUEST,
 	STATE_RECEIVED_REQUEST,
 	STATE_SENDING_HEADERS,
@@ -60,11 +44,9 @@ struct path_buffer {
 	size_t len;
 };
 
-/* structure acting as a connection handler */
 struct connection {
 	int sockfd;
 	int filefd;
-	/* buffers used for receiving messages and then echoing them back */
 	struct buffer recv_buffer;
 	struct buffer send_buffer;
 	size_t file_size;
@@ -74,10 +56,6 @@ struct connection {
 	struct path_buffer path_buffer;
 	char in_epoll;
 };
-
-/*
- * Initialize connection structure on given socket.
- */
 
 static struct connection *connection_create(int sockfd)
 {
@@ -123,16 +101,6 @@ static int on_headers_complete(http_parser *p)
 	return 0;
 }
 
-static int on_message_complete(http_parser *p)
-{
-	struct connection *conn = p->data;
-
-	conn->state = STATE_RECEIVED_REQUEST;
-	dlog(LOG_INFO, "On message complete\n");
-
-	return 0;
-}
-
 static http_parser_settings settings_on_path = {
 		.on_message_begin = NULL,
 		.on_header_field = NULL,
@@ -143,17 +111,12 @@ static http_parser_settings settings_on_path = {
 		.on_query_string = NULL,
 		.on_body = NULL,
 		.on_headers_complete = on_headers_complete,
-		.on_message_complete = on_message_complete,
+		.on_message_complete = NULL,
 };
-
-/*
- * Remove connection handler.
- */
 
 static void connection_remove(struct connection *conn)
 {
 	close(conn->sockfd);
-	conn->state = STATE_CONNECTION_CLOSED;
 	free(conn);
 }
 
@@ -214,9 +177,6 @@ static void send_message(struct connection *conn)
 		snprintf(open_buf, BUFSIZ, "%s%.*s", dirname(AWS_DOCUMENT_ROOT),
 				 (int) conn->path_buffer.len, conn->path_buffer.buf);
 		conn->filefd = open(open_buf, O_RDONLY);
-		char *cwd = getcwd(NULL, 0);
-		dlog(LOG_INFO, "cwd: %s\n", cwd);
-		free(cwd);
 		if (conn->filefd < 0) {
 			ERR("open");
 			dlog(LOG_ERR, "open: %s\n", open_buf);
