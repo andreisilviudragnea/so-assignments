@@ -38,7 +38,8 @@ static int shell_exit(void)
  * Parse and execute a simple command, by either creating a new processing or
  * internally process it.
  */
-static int parse_simple(simple_command_t *s, int level, command_t *father, HANDLE *h)
+static int
+parse_simple(simple_command_t *s, int level, command_t *father, HANDLE *h)
 {
     /* TODO sanity checks */
     char *command = get_argv(s);
@@ -79,11 +80,11 @@ static int parse_simple(simple_command_t *s, int level, command_t *father, HANDL
     if (in != NULL) {
         si.hStdInput = CreateFile(
             in,
-            GENERIC_READ,	   /* access mode */
-            FILE_SHARE_READ | FILE_SHARE_WRITE,	   /* sharing option */
-            &sa,		   /* security attributes */
-            OPEN_EXISTING,	   /* open only if it exists */
-            FILE_ATTRIBUTE_NORMAL,/* file attributes */
+            GENERIC_READ,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            &sa,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
             NULL
         );
         free(in);
@@ -95,15 +96,20 @@ static int parse_simple(simple_command_t *s, int level, command_t *father, HANDL
     if (out != NULL) {
         si.hStdOutput = CreateFile(
             out,
-            GENERIC_WRITE | GENERIC_READ,	   /* access mode */
-            FILE_SHARE_WRITE | FILE_SHARE_READ,	   /* sharing option */
-            &sa,		   /* security attributes */
-            CREATE_ALWAYS,	   /* open only if it exists */
-            FILE_ATTRIBUTE_NORMAL,/* file attributes */
+            GENERIC_WRITE | GENERIC_READ,
+            FILE_SHARE_WRITE | FILE_SHARE_READ,
+            &sa,
+            s->io_flags & IO_OUT_APPEND ? OPEN_ALWAYS : CREATE_ALWAYS,
+            FILE_ATTRIBUTE_NORMAL,
             NULL
         );
         free(out);
         DIE(si.hStdOutput == INVALID_HANDLE_VALUE, "CreateFile out");
+    }
+
+    if (s->io_flags & IO_OUT_APPEND) {
+        DWORD pos = SetFilePointer(si.hStdOutput, 0, NULL, FILE_END);
+        DIE(pos == INVALID_SET_FILE_POINTER, "SetFilePointer out");
     }
 
     si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
@@ -111,31 +117,36 @@ static int parse_simple(simple_command_t *s, int level, command_t *father, HANDL
     if (err != NULL) {
         si.hStdError = CreateFile(
             err,
-            GENERIC_WRITE | GENERIC_READ,	   /* access mode */
-            FILE_SHARE_WRITE | FILE_SHARE_READ,	   /* sharing option */
-            &sa,		   /* security attributes */
-            CREATE_ALWAYS,	   /* open only if it exists */
-            FILE_ATTRIBUTE_NORMAL,/* file attributes */
+            GENERIC_WRITE | GENERIC_READ,
+            FILE_SHARE_WRITE | FILE_SHARE_READ,
+            &sa,
+            s->io_flags & IO_ERR_APPEND ? OPEN_ALWAYS : CREATE_ALWAYS,
+            FILE_ATTRIBUTE_NORMAL,
             NULL
         );
         free(err);
         DIE(si.hStdError == INVALID_HANDLE_VALUE, "CreateFile err");
     }
 
+    if (s->io_flags & IO_ERR_APPEND) {
+        DWORD pos = SetFilePointer(si.hStdError, 0, NULL, FILE_END);
+        DIE(pos == INVALID_SET_FILE_POINTER, "SetFilePointer err");
+    }
+
     ZeroMemory(&pi, sizeof(pi));
 
     /* Start child process */
     bRes = CreateProcess(
-        NULL,           /* No module name (use command line) */
-        command,        /* Command line */
-        NULL,           /* Process handle not inheritable */
-        NULL,           /* Thread handle not inheritable */
-        TRUE,          /* Set handle inheritance to FALSE */
-        0,              /* No creation flags */
-        NULL,           /* Use parent's environment block */
-        NULL,           /* Use parent's starting directory */
-        &si,            /* Pointer to STARTUPINFO structure */
-        &pi             /* Pointer to PROCESS_INFORMATION structure */
+        NULL,
+        command,
+        NULL,
+        NULL,
+        TRUE,
+        0,
+        NULL,
+        NULL,
+        &si,
+        &pi
     );
     DIE(bRes == FALSE, "CreateProcess");
 
