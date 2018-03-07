@@ -41,7 +41,7 @@ static int shell_exit(void)
 static int parse_simple(simple_command_t *s, int level, command_t *father, HANDLE *h)
 {
     /* TODO sanity checks */
-    char *command = get_word(s->verb);
+    char *command = get_argv(s);
 
     if (strcmp(command, "exit") == 0) {
         free(command);
@@ -72,7 +72,7 @@ static int parse_simple(simple_command_t *s, int level, command_t *father, HANDL
     /* Start child process */
     bRes = CreateProcess(
         NULL,           /* No module name (use command line) */
-        get_word(s->verb),        /* Command line */
+        command,        /* Command line */
         NULL,           /* Process handle not inheritable */
         NULL,           /* Thread handle not inheritable */
         FALSE,          /* Set handle inheritance to FALSE */
@@ -120,11 +120,9 @@ int parse_command(command_t *c, int level, command_t *father, void *h)
 {
     /* TODO sanity checks */
 
-    if (c->op == OP_NONE) {
-        return parse_simple(c->scmd, level, father, h);
-    }
-
     switch (c->op) {
+    case OP_NONE:
+        return parse_simple(c->scmd, level, father, h);
     case OP_SEQUENTIAL:
         /* TODO execute the commands one after the other */
         break;
