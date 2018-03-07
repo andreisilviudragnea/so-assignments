@@ -9,18 +9,19 @@
 
 #include "cmd.h"
 #include "utils.h"
+#include "parser.h"
 
-#define READ		0
-#define WRITE		1
+#define READ        0
+#define WRITE        1
 
 /**
  * Internal change-directory command.
  */
 static bool shell_cd(word_t *dir)
 {
-	/* TODO execute cd */
+    /* TODO execute cd */
 
-	return 0;
+    return 0;
 }
 
 /**
@@ -28,55 +29,88 @@ static bool shell_cd(word_t *dir)
  */
 static int shell_exit(void)
 {
-	/* TODO execute exit/quit */
+    /* TODO execute exit/quit */
 
-	return 0; /* TODO replace with actual exit code */
+    return 0; /* TODO replace with actual exit code */
 }
 
 /**
  * Parse and execute a simple command, by either creating a new processing or
  * internally process it.
  */
-bool parse_simple(simple_command_t *s, int level, command_t *father, HANDLE *h)
+static int parse_simple(simple_command_t *s, int level, command_t *father, HANDLE *h)
 {
-	/* TODO sanity checks */
+    /* TODO sanity checks */
+    char *command = get_word(s->verb);
 
-	/* TODO if builtin command, execute the command */
+    if (strcmp(command, "exit") == 0) {
+        free(command);
+        return SHELL_EXIT;
+    }
 
-	/* TODO if variable assignment, execute the assignment and return
-	 * the exit status
-	 */
+    /* TODO if builtin command, execute the command */
 
-	/* TODO if external command:
-	 *  1. set handles
-	 *  2. redirect standard input / output / error
-	 *  3. run command
-	 *  4. get exit code
-	 */
+    /* TODO if variable assignment, execute the assignment and return
+     * the exit status
+     */
 
-	return 0; /* TODO replace with actual exit status */
+    /* TODO if external command:
+     *  1. set handles
+     *  2. redirect standard input / output / error
+     *  3. run command
+     *  4. get exit code
+     */
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+    DWORD dwRes;
+    BOOL bRes;
+
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+
+    /* Start child process */
+    bRes = CreateProcess(
+        NULL,           /* No module name (use command line) */
+        get_word(s->verb),        /* Command line */
+        NULL,           /* Process handle not inheritable */
+        NULL,           /* Thread handle not inheritable */
+        FALSE,          /* Set handle inheritance to FALSE */
+        0,              /* No creation flags */
+        NULL,           /* Use parent's environment block */
+        NULL,           /* Use parent's starting directory */
+        &si,            /* Pointer to STARTUPINFO structure */
+        &pi             /* Pointer to PROCESS_INFORMATION structure */
+    );
+    DIE(bRes == FALSE, "CreateProcess");
+
+    /* Wait for the child to finish */
+    dwRes = WaitForSingleObject(pi.hProcess, INFINITE);
+    DIE(dwRes == WAIT_FAILED, "WaitForSingleObject");
+
+    return true; /* TODO replace with actual exit status */
 }
 
 /**
  * Process two commands in parallel, by creating two children.
  */
 static bool do_in_parallel(command_t *cmd1, command_t *cmd2, int level,
-		command_t *father)
+                           command_t *father)
 {
-	/* TODO execute cmd1 and cmd2 simultaneously */
+    /* TODO execute cmd1 and cmd2 simultaneously */
 
-	return true; /* TODO replace with actual exit status */
+    return true; /* TODO replace with actual exit status */
 }
 
 /**
  * Run commands by creating an anonymous pipe (cmd1 | cmd2)
  */
 static bool do_on_pipe(command_t *cmd1, command_t *cmd2, int level,
-		command_t *father)
+                       command_t *father)
 {
-	/* TODO redirect the output of cmd1 to the input of cmd2 */
+    /* TODO redirect the output of cmd1 to the input of cmd2 */
 
-	return true; /* TODO replace with actual exit status */
+    return true; /* TODO replace with actual exit status */
 }
 
 /**
@@ -84,44 +118,42 @@ static bool do_on_pipe(command_t *cmd1, command_t *cmd2, int level,
  */
 int parse_command(command_t *c, int level, command_t *father, void *h)
 {
-	/* TODO sanity checks */
+    /* TODO sanity checks */
 
-	if (c->op == OP_NONE) {
-		/* TODO execute a simple command */
+    if (c->op == OP_NONE) {
+        return parse_simple(c->scmd, level, father, h);
+    }
 
-		return 0; /* TODO replace with actual exit code of command */
-	}
+    switch (c->op) {
+    case OP_SEQUENTIAL:
+        /* TODO execute the commands one after the other */
+        break;
 
-	switch (c->op) {
-	case OP_SEQUENTIAL:
-		/* TODO execute the commands one after the other */
-		break;
+    case OP_PARALLEL:
+        /* TODO execute the commands simultaneously */
+        break;
 
-	case OP_PARALLEL:
-		/* TODO execute the commands simultaneously */
-		break;
+    case OP_CONDITIONAL_NZERO:
+        /* TODO execute the second command only if the first one
+         * returns non zero
+         */
+        break;
 
-	case OP_CONDITIONAL_NZERO:
-		/* TODO execute the second command only if the first one
-		 * returns non zero
-		 */
-		break;
+    case OP_CONDITIONAL_ZERO:
+        /* TODO execute the second command only if the first one
+         * returns zero
+         */
+        break;
 
-	case OP_CONDITIONAL_ZERO:
-		/* TODO execute the second command only if the first one
-		 * returns zero
-		 */
-		break;
+    case OP_PIPE:
+        /* TODO redirect the output of the first command to the
+         * input of the second
+         */
+        break;
 
-	case OP_PIPE:
-		/* TODO redirect the output of the first command to the
-		 * input of the second
-		 */
-		break;
+    default:
+        return SHELL_EXIT;
+    }
 
-	default:
-		return SHELL_EXIT;
-	}
-
-	return 0; /* TODO replace with actual exit code of command */
+    return 0; /* TODO replace with actual exit code of command */
 }

@@ -10,7 +10,7 @@
 
 #include "parser.h"
 
-#define SHELL_EXIT -100
+#define SHELL_EXIT (-100)
 
 /**
  * Parse and execute a command.

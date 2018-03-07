@@ -8,6 +8,7 @@
 
 #include <windows.h>
 #include "parser.h"
+#include <stdio.h>
 
 VOID PrintLastError(const PCHAR message);
 
