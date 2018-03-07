@@ -67,6 +67,61 @@ static int parse_simple(simple_command_t *s, int level, command_t *father, HANDL
 
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
+
+    si.dwFlags |= STARTF_USESTDHANDLES;
+
+    SECURITY_ATTRIBUTES sa;
+    ZeroMemory(&sa, sizeof(sa));
+    sa.bInheritHandle = TRUE;
+
+    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    char *in = get_word(s->in);
+    if (in != NULL) {
+        si.hStdInput = CreateFile(
+            in,
+            GENERIC_READ,	   /* access mode */
+            FILE_SHARE_READ | FILE_SHARE_WRITE,	   /* sharing option */
+            &sa,		   /* security attributes */
+            OPEN_EXISTING,	   /* open only if it exists */
+            FILE_ATTRIBUTE_NORMAL,/* file attributes */
+            NULL
+        );
+        free(in);
+        DIE(si.hStdInput == INVALID_HANDLE_VALUE, "CreateFile in");
+    }
+
+    si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+    char *out = get_word(s->out);
+    if (out != NULL) {
+        si.hStdOutput = CreateFile(
+            out,
+            GENERIC_WRITE | GENERIC_READ,	   /* access mode */
+            FILE_SHARE_WRITE | FILE_SHARE_READ,	   /* sharing option */
+            &sa,		   /* security attributes */
+            CREATE_ALWAYS,	   /* open only if it exists */
+            FILE_ATTRIBUTE_NORMAL,/* file attributes */
+            NULL
+        );
+        free(out);
+        DIE(si.hStdOutput == INVALID_HANDLE_VALUE, "CreateFile out");
+    }
+
+    si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    char *err = get_word(s->err);
+    if (err != NULL) {
+        si.hStdError = CreateFile(
+            err,
+            GENERIC_WRITE | GENERIC_READ,	   /* access mode */
+            FILE_SHARE_WRITE | FILE_SHARE_READ,	   /* sharing option */
+            &sa,		   /* security attributes */
+            CREATE_ALWAYS,	   /* open only if it exists */
+            FILE_ATTRIBUTE_NORMAL,/* file attributes */
+            NULL
+        );
+        free(err);
+        DIE(si.hStdError == INVALID_HANDLE_VALUE, "CreateFile err");
+    }
+
     ZeroMemory(&pi, sizeof(pi));
 
     /* Start child process */
@@ -75,7 +130,7 @@ static int parse_simple(simple_command_t *s, int level, command_t *father, HANDL
         command,        /* Command line */
         NULL,           /* Process handle not inheritable */
         NULL,           /* Thread handle not inheritable */
-        FALSE,          /* Set handle inheritance to FALSE */
+        TRUE,          /* Set handle inheritance to FALSE */
         0,              /* No creation flags */
         NULL,           /* Use parent's environment block */
         NULL,           /* Use parent's starting directory */
@@ -83,6 +138,19 @@ static int parse_simple(simple_command_t *s, int level, command_t *father, HANDL
         &pi             /* Pointer to PROCESS_INFORMATION structure */
     );
     DIE(bRes == FALSE, "CreateProcess");
+
+    if (err != NULL) {
+        BOOL ret = CloseHandle(si.hStdError);
+        DIE(ret == FALSE, "CloseHandle err");
+    }
+    if (out != NULL) {
+        BOOL ret = CloseHandle(si.hStdOutput);
+        DIE(ret == FALSE, "CloseHandle out");
+    }
+    if (in != NULL) {
+        BOOL ret = CloseHandle(si.hStdInput);
+        DIE(ret == FALSE, "CloseHandle in");
+    }
 
     /* Wait for the child to finish */
     dwRes = WaitForSingleObject(pi.hProcess, INFINITE);
