@@ -84,7 +84,7 @@ LPTSTR get_word(word_t *s)
 /**
  * Parse arguments in order to succesfully process them using CreateProcess
  */
-LPTSTR get_argv(simple_command_t *command)
+LPTSTR get_argv(const simple_command_t *command)
 {
 	LPTSTR argv = NULL;
 	LPTSTR substring = NULL;
