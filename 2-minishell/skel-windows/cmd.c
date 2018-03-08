@@ -49,8 +49,6 @@ parse_simple(simple_command_t *s, int level, command_t *father, HANDLE *h)
         return SHELL_EXIT;
     }
 
-    /* TODO if builtin command, execute the command */
-
     /* TODO if variable assignment, execute the assignment and return
      * the exit status
      */
@@ -140,6 +138,13 @@ parse_simple(simple_command_t *s, int level, command_t *father, HANDLE *h)
     if (s->io_flags & IO_ERR_APPEND) {
         DWORD pos = SetFilePointer(si.hStdError, 0, NULL, FILE_END);
         DIE(pos == INVALID_SET_FILE_POINTER, "SetFilePointer err");
+    }
+
+    /* TODO if builtin command, execute the command */
+    if (strcmp(get_word(s->verb), "cd") == 0) {
+        BOOL ret = SetCurrentDirectory(get_word(s->params));
+        DIE(ret == FALSE, "SetCurrentDirectory");
+        return 0;
     }
 
     ZeroMemory(&pi, sizeof(pi));
