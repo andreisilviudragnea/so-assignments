@@ -49,9 +49,11 @@ parse_simple(simple_command_t *s, int level, command_t *father, HANDLE *h)
         return SHELL_EXIT;
     }
 
-    /* TODO if variable assignment, execute the assignment and return
-     * the exit status
-     */
+    if (strchr(get_argv(s), '=') != NULL) {
+        BOOL ret = SetEnvironmentVariable(s->verb->string,
+                                          s->verb->next_part->next_part->string);
+        return ret == FALSE ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
 
     /* TODO if external command:
      *  1. set handles
@@ -223,8 +225,7 @@ int parse_command(command_t *c, int level, command_t *father, void *h)
         /* TODO execute the commands simultaneously */
         break;
 
-    case OP_CONDITIONAL_NZERO:
-    {
+    case OP_CONDITIONAL_NZERO: {
         int ret = parse_command(c->cmd1, level, father, h);
         if (ret == EXIT_SUCCESS) {
             return ret;
@@ -233,8 +234,7 @@ int parse_command(command_t *c, int level, command_t *father, void *h)
         }
     }
 
-    case OP_CONDITIONAL_ZERO:
-    {
+    case OP_CONDITIONAL_ZERO: {
         int ret = parse_command(c->cmd1, level, father, h);
         if (ret != EXIT_SUCCESS) {
             return ret;
