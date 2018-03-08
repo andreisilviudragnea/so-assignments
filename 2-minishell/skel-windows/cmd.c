@@ -11,29 +11,6 @@
 #include "utils.h"
 #include "parser.h"
 
-#define READ        0
-#define WRITE        1
-
-/**
- * Internal change-directory command.
- */
-static bool shell_cd(word_t *dir)
-{
-    /* TODO execute cd */
-
-    return 0;
-}
-
-/**
- * Internal exit/quit command.
- */
-static int shell_exit(void)
-{
-    /* TODO execute exit/quit */
-
-    return 0; /* TODO replace with actual exit code */
-}
-
 static HANDLE
 create_process(LPSTR command, HANDLE hStdin, HANDLE hStdout, HANDLE hStdErr)
 {
@@ -98,11 +75,9 @@ redirect(const simple_command_t *s, PHANDLE hStdInput, PHANDLE hStdOutput,
     }
 
     char *err = get_word(s->err);
-    bool out_and_err = false;
     if (err != NULL) {
         if (out != NULL && strcmp(out, err) == 0) {
             *hStdError = *hStdOutput;
-            out_and_err = true;
         } else {
             *hStdError = CreateFile(
                 err,
@@ -167,7 +142,7 @@ redirect_and_execute(const simple_command_t *s, PHANDLE hStdInput,
  * internally process it.
  */
 static DWORD
-parse_simple(simple_command_t *s, int level, command_t *father, HANDLE h)
+parse_simple(simple_command_t *s, HANDLE hStdin, HANDLE hStdout)
 {
     char *command = get_argv(s);
 
@@ -182,18 +157,15 @@ parse_simple(simple_command_t *s, int level, command_t *father, HANDLE h)
         return ret == FALSE ? EXIT_FAILURE : EXIT_SUCCESS;
     }
 
-    HANDLE hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-    HANDLE hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
     HANDLE hStdError = GetStdHandle(STD_ERROR_HANDLE);
-    redirect(s, &hStdInput, &hStdOutput, &hStdError);
+    redirect(s, &hStdin, &hStdout, &hStdError);
 
     if (strcmp(get_word(s->verb), "cd") == 0) {
         BOOL ret = SetCurrentDirectory(get_word(s->params));
         return ret == FALSE ? EXIT_FAILURE : EXIT_SUCCESS;
     }
 
-    HANDLE hProcess = execute_and_close_handles(s, hStdInput, hStdOutput,
-                                                hStdError);
+    HANDLE hProcess = execute_and_close_handles(s, hStdin, hStdout, hStdError);
 
     DWORD dwRes = WaitForSingleObject(hProcess, INFINITE);
     DIE(dwRes == WAIT_FAILED, "WaitForSingleObject");
@@ -218,8 +190,8 @@ static bool do_in_parallel(command_t *cmd1, command_t *cmd2, int level,
 /**
  * Run commands by creating an anonymous pipe (cmd1 | cmd2)
  */
-static DWORD do_on_pipe(command_t *cmd1, command_t *cmd2, int level,
-                        command_t *father)
+static DWORD
+do_on_pipe(command_t *cmd1, command_t *cmd2, HANDLE hStdin, HANDLE hStdout)
 {
     HANDLE readPipe;
     HANDLE writePipe;
@@ -231,7 +203,6 @@ static DWORD do_on_pipe(command_t *cmd1, command_t *cmd2, int level,
 
     HANDLE hProcess1;
     {
-        HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
         HANDLE hStderr1 = GetStdHandle(STD_ERROR_HANDLE);
         hProcess1 = redirect_and_execute(cmd1->scmd, &hStdin, &writePipe,
                                          &hStderr1);
@@ -239,7 +210,6 @@ static DWORD do_on_pipe(command_t *cmd1, command_t *cmd2, int level,
 
     HANDLE hProcess2;
     {
-        HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
         HANDLE hStderr2 = GetStdHandle(STD_ERROR_HANDLE);
         hProcess2 = redirect_and_execute(cmd2->scmd, &readPipe, &hStdout,
                                          &hStderr2);
@@ -260,38 +230,38 @@ static DWORD do_on_pipe(command_t *cmd1, command_t *cmd2, int level,
 /**
  * Parse and execute a command.
  */
-DWORD parse_command(command_t *c, int level, command_t *father, HANDLE h)
+DWORD parse_command(command_t *c, HANDLE hStdin, HANDLE hStdout)
 {
     switch (c->op) {
     case OP_NONE:
-        return parse_simple(c->scmd, level, father, h);
+        return parse_simple(c->scmd, hStdin, hStdout);
     case OP_SEQUENTIAL:
-        parse_command(c->cmd1, level, father, h);
-        return parse_command(c->cmd2, level, father, h);
+        parse_command(c->cmd1, hStdin, hStdout);
+        return parse_command(c->cmd2, hStdin, hStdout);
     case OP_PARALLEL:
         /* TODO execute the commands simultaneously */
         break;
 
     case OP_CONDITIONAL_NZERO: {
-        DWORD ret = parse_command(c->cmd1, level, father, h);
+        DWORD ret = parse_command(c->cmd1, hStdin, hStdout);
         if (ret == EXIT_SUCCESS) {
             return ret;
         } else {
-            return parse_command(c->cmd2, level, father, h);
+            return parse_command(c->cmd2, hStdin, hStdout);
         }
     }
 
     case OP_CONDITIONAL_ZERO: {
-        DWORD ret = parse_command(c->cmd1, level, father, h);
+        DWORD ret = parse_command(c->cmd1, hStdin, hStdout);
         if (ret != EXIT_SUCCESS) {
             return ret;
         } else {
-            return parse_command(c->cmd2, level, father, h);
+            return parse_command(c->cmd2, hStdin, hStdout);
         }
     }
 
     case OP_PIPE:
-        return do_on_pipe(c->cmd1, c->cmd2, level, father);
+        return do_on_pipe(c->cmd1, c->cmd2, hStdin, hStdout);
 
     default:
         return SHELL_EXIT;

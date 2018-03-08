@@ -16,6 +16,6 @@
 /**
  * Parse and execute a command.
  */
-DWORD parse_command(command_t *cmd, int level, command_t *father, HANDLE h);
+DWORD parse_command(command_t *cmd, HANDLE hStdin, HANDLE hStdout);
 
 #endif /* _CMD_H */

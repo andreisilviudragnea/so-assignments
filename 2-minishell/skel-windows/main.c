@@ -91,7 +91,8 @@ static void start_shell(void)
 
         int ret = 0;
         if (root != NULL)
-            ret = parse_command(root, 0, NULL, NULL);
+            ret = parse_command(root, GetStdHandle(STD_INPUT_HANDLE),
+                                GetStdHandle(STD_OUTPUT_HANDLE));
 
         free_parse_memory();
         free(line);
