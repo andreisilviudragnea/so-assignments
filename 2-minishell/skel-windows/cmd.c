@@ -103,7 +103,6 @@ parse_simple(simple_command_t *s, int level, command_t *father, HANDLE *h)
             FILE_ATTRIBUTE_NORMAL,
             NULL
         );
-        free(out);
         DIE(si.hStdOutput == INVALID_HANDLE_VALUE, "CreateFile out");
     }
 
@@ -114,18 +113,28 @@ parse_simple(simple_command_t *s, int level, command_t *father, HANDLE *h)
 
     si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
     char *err = get_word(s->err);
+    bool out_and_err = false;
     if (err != NULL) {
-        si.hStdError = CreateFile(
-            err,
-            GENERIC_WRITE | GENERIC_READ,
-            FILE_SHARE_WRITE | FILE_SHARE_READ,
-            &sa,
-            s->io_flags & IO_ERR_APPEND ? OPEN_ALWAYS : CREATE_ALWAYS,
-            FILE_ATTRIBUTE_NORMAL,
-            NULL
-        );
+        if (out != NULL && strcmp(out, err) == 0) {
+            si.hStdError = si.hStdOutput;
+            out_and_err = true;
+        } else {
+            si.hStdError = CreateFile(
+                err,
+                GENERIC_WRITE | GENERIC_READ,
+                FILE_SHARE_WRITE | FILE_SHARE_READ,
+                &sa,
+                s->io_flags & IO_ERR_APPEND ? OPEN_ALWAYS : CREATE_ALWAYS,
+                FILE_ATTRIBUTE_NORMAL,
+                NULL
+            );
+        }
         free(err);
         DIE(si.hStdError == INVALID_HANDLE_VALUE, "CreateFile err");
+    }
+
+    if (out != NULL) {
+        free(out);
     }
 
     if (s->io_flags & IO_ERR_APPEND) {
@@ -150,7 +159,7 @@ parse_simple(simple_command_t *s, int level, command_t *father, HANDLE *h)
     );
     DIE(bRes == FALSE, "CreateProcess");
 
-    if (err != NULL) {
+    if (err != NULL && !out_and_err) {
         BOOL ret = CloseHandle(si.hStdError);
         DIE(ret == FALSE, "CloseHandle err");
     }
