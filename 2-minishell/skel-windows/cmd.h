@@ -9,12 +9,13 @@
 #define _CMD_H
 
 #include "parser.h"
+#include <windows.h>
 
-#define SHELL_EXIT (-100)
+#define SHELL_EXIT 100
 
 /**
  * Parse and execute a command.
  */
-int parse_command(command_t *cmd, int level, command_t *father, void *h);
+DWORD parse_command(command_t *cmd, int level, command_t *father, HANDLE h);
 
 #endif /* _CMD_H */
