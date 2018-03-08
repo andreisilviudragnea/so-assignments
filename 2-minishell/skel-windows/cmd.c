@@ -38,7 +38,7 @@ static int shell_exit(void)
  * Parse and execute a simple command, by either creating a new processing or
  * internally process it.
  */
-static int
+static long
 parse_simple(simple_command_t *s, int level, command_t *father, HANDLE *h)
 {
     /* TODO sanity checks */
@@ -143,8 +143,7 @@ parse_simple(simple_command_t *s, int level, command_t *father, HANDLE *h)
     /* TODO if builtin command, execute the command */
     if (strcmp(get_word(s->verb), "cd") == 0) {
         BOOL ret = SetCurrentDirectory(get_word(s->params));
-        DIE(ret == FALSE, "SetCurrentDirectory");
-        return 0;
+        return ret == FALSE ? EXIT_FAILURE : EXIT_SUCCESS;
     }
 
     ZeroMemory(&pi, sizeof(pi));
@@ -181,7 +180,10 @@ parse_simple(simple_command_t *s, int level, command_t *father, HANDLE *h)
     dwRes = WaitForSingleObject(pi.hProcess, INFINITE);
     DIE(dwRes == WAIT_FAILED, "WaitForSingleObject");
 
-    return true; /* TODO replace with actual exit status */
+    bRes = GetExitCodeProcess(pi.hProcess, &dwRes);
+    DIE(bRes == FALSE, "GetExitCode");
+
+    return dwRes;
 }
 
 /**
@@ -211,30 +213,35 @@ static bool do_on_pipe(command_t *cmd1, command_t *cmd2, int level,
  */
 int parse_command(command_t *c, int level, command_t *father, void *h)
 {
-    /* TODO sanity checks */
-
     switch (c->op) {
     case OP_NONE:
         return parse_simple(c->scmd, level, father, h);
     case OP_SEQUENTIAL:
-        /* TODO execute the commands one after the other */
-        break;
-
+        parse_command(c->cmd1, level, father, h);
+        return parse_command(c->cmd2, level, father, h);
     case OP_PARALLEL:
         /* TODO execute the commands simultaneously */
         break;
 
     case OP_CONDITIONAL_NZERO:
-        /* TODO execute the second command only if the first one
-         * returns non zero
-         */
-        break;
+    {
+        int ret = parse_command(c->cmd1, level, father, h);
+        if (ret == EXIT_SUCCESS) {
+            return ret;
+        } else {
+            return parse_command(c->cmd2, level, father, h);
+        }
+    }
 
     case OP_CONDITIONAL_ZERO:
-        /* TODO execute the second command only if the first one
-         * returns zero
-         */
-        break;
+    {
+        int ret = parse_command(c->cmd1, level, father, h);
+        if (ret != EXIT_SUCCESS) {
+            return ret;
+        } else {
+            return parse_command(c->cmd2, level, father, h);
+        }
+    }
 
     case OP_PIPE:
         /* TODO redirect the output of the first command to the
