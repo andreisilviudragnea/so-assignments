@@ -201,24 +201,14 @@ do_on_pipe(command_t *cmd1, command_t *cmd2, HANDLE hStdin, HANDLE hStdout)
     BOOL ret = CreatePipe(&readPipe, &writePipe, &sa, 0);
     DIE(ret == FALSE, "CreatePipe");
 
-    HANDLE hProcess1;
-    {
-        HANDLE hStderr1 = GetStdHandle(STD_ERROR_HANDLE);
-        hProcess1 = redirect_and_execute(cmd1->scmd, &hStdin, &writePipe,
-                                         &hStderr1);
-    }
+    HANDLE hStderr1 = GetStdHandle(STD_ERROR_HANDLE);
+    redirect_and_execute(cmd1->scmd, &hStdin, &writePipe, &hStderr1);
 
-    HANDLE hProcess2;
-    {
-        HANDLE hStderr2 = GetStdHandle(STD_ERROR_HANDLE);
-        hProcess2 = redirect_and_execute(cmd2->scmd, &readPipe, &hStdout,
-                                         &hStderr2);
-    }
+    HANDLE hStderr2 = GetStdHandle(STD_ERROR_HANDLE);
+    HANDLE hProcess2 = redirect_and_execute(cmd2->scmd, &readPipe, &hStdout,
+                                            &hStderr2);
 
-    DWORD dwRes = WaitForSingleObject(hProcess1, INFINITE);
-    DIE(dwRes == WAIT_FAILED, "WaitForSingleObject");
-
-    dwRes = WaitForSingleObject(hProcess2, INFINITE);
+    DWORD dwRes = WaitForSingleObject(hProcess2, INFINITE);
     DIE(dwRes == WAIT_FAILED, "WaitForSingleObject");
 
     BOOL bRes = GetExitCodeProcess(hProcess2, &dwRes);
