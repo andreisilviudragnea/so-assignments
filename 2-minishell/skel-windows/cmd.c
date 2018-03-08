@@ -1,12 +1,4 @@
-/**
- * Operating Systems 2013-2017 - Assignment 2
- *
- * TODO Name, Group
- *
- */
-
 #include <windows.h>
-
 #include "cmd.h"
 #include "utils.h"
 #include "parser.h"
@@ -129,18 +121,6 @@ execute_and_close_handles(const simple_command_t *s, HANDLE hStdInput,
     return hProcess;
 }
 
-static HANDLE
-redirect_and_execute(const simple_command_t *s, PHANDLE hStdInput,
-                     PHANDLE hStdOutput, PHANDLE hStdError)
-{
-    redirect(s, hStdInput, hStdOutput, hStdError);
-    return execute_and_close_handles(s, *hStdInput, *hStdOutput, *hStdError);
-}
-
-/**
- * Parse and execute a simple command, by either creating a new processing or
- * internally process it.
- */
 static DWORD
 parse_simple(simple_command_t *s, HANDLE hStdin, HANDLE hStdout, bool wait)
 {
@@ -180,9 +160,6 @@ parse_simple(simple_command_t *s, HANDLE hStdin, HANDLE hStdout, bool wait)
     return dwRes;
 }
 
-/**
- * Process two commands in parallel, by creating two children.
- */
 static bool do_in_parallel(command_t *cmd1, command_t *cmd2, int level,
                            command_t *father)
 {
@@ -191,9 +168,6 @@ static bool do_in_parallel(command_t *cmd1, command_t *cmd2, int level,
     return true; /* TODO replace with actual exit status */
 }
 
-/**
- * Run commands by creating an anonymous pipe (cmd1 | cmd2)
- */
 static DWORD
 do_on_pipe(command_t *cmd2, HANDLE hStdin, HANDLE hStdout, command_t *cmd1)
 {
@@ -210,9 +184,6 @@ do_on_pipe(command_t *cmd2, HANDLE hStdin, HANDLE hStdout, command_t *cmd1)
     return parse_command(cmd2, readPipe, hStdout, true);
 }
 
-/**
- * Parse and execute a command.
- */
 DWORD parse_command(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait)
 {
     switch (c->op) {
@@ -222,9 +193,7 @@ DWORD parse_command(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait)
         parse_command(c->cmd1, hStdin, hStdout, wait);
         return parse_command(c->cmd2, hStdin, hStdout, wait);
     case OP_PARALLEL:
-        /* TODO execute the commands simultaneously */
         break;
-
     case OP_CONDITIONAL_NZERO: {
         DWORD ret = parse_command(c->cmd1, hStdin, hStdout, wait);
         if (ret == EXIT_SUCCESS) {
@@ -233,7 +202,6 @@ DWORD parse_command(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait)
             return parse_command(c->cmd2, hStdin, hStdout, wait);
         }
     }
-
     case OP_CONDITIONAL_ZERO: {
         DWORD ret = parse_command(c->cmd1, hStdin, hStdout, wait);
         if (ret != EXIT_SUCCESS) {
@@ -242,13 +210,9 @@ DWORD parse_command(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait)
             return parse_command(c->cmd2, hStdin, hStdout, wait);
         }
     }
-
     case OP_PIPE:
         return do_on_pipe(c->cmd2, hStdin, hStdout, c->cmd1);
-
     default:
         return SHELL_EXIT;
     }
-
-    return 0; /* TODO replace with actual exit code of command */
 }
