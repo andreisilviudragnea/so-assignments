@@ -142,7 +142,7 @@ redirect_and_execute(const simple_command_t *s, PHANDLE hStdInput,
  * internally process it.
  */
 static DWORD
-parse_simple(simple_command_t *s, HANDLE hStdin, HANDLE hStdout)
+parse_simple(simple_command_t *s, HANDLE hStdin, HANDLE hStdout, bool wait)
 {
     char *command = get_argv(s);
 
@@ -166,6 +166,10 @@ parse_simple(simple_command_t *s, HANDLE hStdin, HANDLE hStdout)
     }
 
     HANDLE hProcess = execute_and_close_handles(s, hStdin, hStdout, hStdError);
+
+    if (!wait) {
+        return EXIT_SUCCESS;
+    }
 
     DWORD dwRes = WaitForSingleObject(hProcess, INFINITE);
     DIE(dwRes == WAIT_FAILED, "WaitForSingleObject");
@@ -191,7 +195,7 @@ static bool do_in_parallel(command_t *cmd1, command_t *cmd2, int level,
  * Run commands by creating an anonymous pipe (cmd1 | cmd2)
  */
 static DWORD
-do_on_pipe(command_t *cmd1, command_t *cmd2, HANDLE hStdin, HANDLE hStdout)
+do_on_pipe(command_t *cmd2, HANDLE hStdin, HANDLE hStdout, command_t *cmd1)
 {
     HANDLE readPipe;
     HANDLE writePipe;
@@ -201,57 +205,46 @@ do_on_pipe(command_t *cmd1, command_t *cmd2, HANDLE hStdin, HANDLE hStdout)
     BOOL ret = CreatePipe(&readPipe, &writePipe, &sa, 0);
     DIE(ret == FALSE, "CreatePipe");
 
-    HANDLE hStderr1 = GetStdHandle(STD_ERROR_HANDLE);
-    redirect_and_execute(cmd1->scmd, &hStdin, &writePipe, &hStderr1);
+    parse_command(cmd1, hStdin, writePipe, false);
 
-    HANDLE hStderr2 = GetStdHandle(STD_ERROR_HANDLE);
-    HANDLE hProcess2 = redirect_and_execute(cmd2->scmd, &readPipe, &hStdout,
-                                            &hStderr2);
-
-    DWORD dwRes = WaitForSingleObject(hProcess2, INFINITE);
-    DIE(dwRes == WAIT_FAILED, "WaitForSingleObject");
-
-    BOOL bRes = GetExitCodeProcess(hProcess2, &dwRes);
-    DIE(bRes == FALSE, "GetExitCode");
-
-    return dwRes;
+    return parse_command(cmd2, readPipe, hStdout, true);
 }
 
 /**
  * Parse and execute a command.
  */
-DWORD parse_command(command_t *c, HANDLE hStdin, HANDLE hStdout)
+DWORD parse_command(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait)
 {
     switch (c->op) {
     case OP_NONE:
-        return parse_simple(c->scmd, hStdin, hStdout);
+        return parse_simple(c->scmd, hStdin, hStdout, wait);
     case OP_SEQUENTIAL:
-        parse_command(c->cmd1, hStdin, hStdout);
-        return parse_command(c->cmd2, hStdin, hStdout);
+        parse_command(c->cmd1, hStdin, hStdout, wait);
+        return parse_command(c->cmd2, hStdin, hStdout, wait);
     case OP_PARALLEL:
         /* TODO execute the commands simultaneously */
         break;
 
     case OP_CONDITIONAL_NZERO: {
-        DWORD ret = parse_command(c->cmd1, hStdin, hStdout);
+        DWORD ret = parse_command(c->cmd1, hStdin, hStdout, wait);
         if (ret == EXIT_SUCCESS) {
             return ret;
         } else {
-            return parse_command(c->cmd2, hStdin, hStdout);
+            return parse_command(c->cmd2, hStdin, hStdout, wait);
         }
     }
 
     case OP_CONDITIONAL_ZERO: {
-        DWORD ret = parse_command(c->cmd1, hStdin, hStdout);
+        DWORD ret = parse_command(c->cmd1, hStdin, hStdout, wait);
         if (ret != EXIT_SUCCESS) {
             return ret;
         } else {
-            return parse_command(c->cmd2, hStdin, hStdout);
+            return parse_command(c->cmd2, hStdin, hStdout, wait);
         }
     }
 
     case OP_PIPE:
-        return do_on_pipe(c->cmd1, c->cmd2, hStdin, hStdout);
+        return do_on_pipe(c->cmd2, hStdin, hStdout, c->cmd1);
 
     default:
         return SHELL_EXIT;
