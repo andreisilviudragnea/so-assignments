@@ -129,29 +129,37 @@ redirect(const simple_command_t *s, PHANDLE hStdInput, PHANDLE hStdOutput,
 }
 
 static HANDLE
-redirect_and_create_process(const simple_command_t *s, PHANDLE hStdInput,
-                            PHANDLE hStdOutput, PHANDLE hStdError)
+execute_and_close_handles(const simple_command_t *s, HANDLE hStdInput,
+                          HANDLE hStdOutput, HANDLE hStdError)
 {
-    redirect(s, hStdInput, hStdOutput, hStdError);
+    HANDLE hProcess = create_process(get_argv(s), hStdInput, hStdOutput,
+                                     hStdError);
 
-    HANDLE hProcess = create_process(get_argv(s), *hStdInput, *hStdOutput,
-                                     *hStdError);
+    BOOL ret;
 
-    if (*hStdError != GetStdHandle(STD_ERROR_HANDLE) &&
-        *hStdError != *hStdOutput) {
-        BOOL ret = CloseHandle(*hStdError);
+    if (hStdError != GetStdHandle(STD_ERROR_HANDLE) &&
+        hStdError != hStdOutput) {
+        ret = CloseHandle(hStdError);
         DIE(ret == FALSE, "CloseHandle err");
     }
-    if (*hStdOutput != GetStdHandle(STD_OUTPUT_HANDLE)) {
-        BOOL ret = CloseHandle(*hStdOutput);
+    if (hStdOutput != GetStdHandle(STD_OUTPUT_HANDLE)) {
+        ret = CloseHandle(hStdOutput);
         DIE(ret == FALSE, "CloseHandle out");
     }
-    if (*hStdInput != GetStdHandle(STD_INPUT_HANDLE)) {
-        BOOL ret = CloseHandle(*hStdInput);
+    if (hStdInput != GetStdHandle(STD_INPUT_HANDLE)) {
+        ret = CloseHandle(hStdInput);
         DIE(ret == FALSE, "CloseHandle in");
     }
 
     return hProcess;
+}
+
+static HANDLE
+redirect_and_execute(const simple_command_t *s, PHANDLE hStdInput,
+                     PHANDLE hStdOutput, PHANDLE hStdError)
+{
+    redirect(s, hStdInput, hStdOutput, hStdError);
+    return execute_and_close_handles(s, *hStdInput, *hStdOutput, *hStdError);
 }
 
 /**
@@ -161,7 +169,6 @@ redirect_and_create_process(const simple_command_t *s, PHANDLE hStdInput,
 static DWORD
 parse_simple(simple_command_t *s, int level, command_t *father, HANDLE h)
 {
-    /* TODO sanity checks */
     char *command = get_argv(s);
 
     if (strcmp(command, "exit") == 0) {
@@ -180,27 +187,13 @@ parse_simple(simple_command_t *s, int level, command_t *father, HANDLE h)
     HANDLE hStdError = GetStdHandle(STD_ERROR_HANDLE);
     redirect(s, &hStdInput, &hStdOutput, &hStdError);
 
-    /* TODO if builtin command, execute the command */
     if (strcmp(get_word(s->verb), "cd") == 0) {
         BOOL ret = SetCurrentDirectory(get_word(s->params));
         return ret == FALSE ? EXIT_FAILURE : EXIT_SUCCESS;
     }
 
-    HANDLE hProcess = create_process(command, hStdInput, hStdOutput, hStdError);
-
-    if (hStdError != GetStdHandle(STD_ERROR_HANDLE) &&
-        hStdError != hStdOutput) {
-        BOOL ret = CloseHandle(hStdError);
-        DIE(ret == FALSE, "CloseHandle err");
-    }
-    if (hStdOutput != GetStdHandle(STD_OUTPUT_HANDLE)) {
-        BOOL ret = CloseHandle(hStdOutput);
-        DIE(ret == FALSE, "CloseHandle out");
-    }
-    if (hStdInput != GetStdHandle(STD_INPUT_HANDLE)) {
-        BOOL ret = CloseHandle(hStdInput);
-        DIE(ret == FALSE, "CloseHandle in");
-    }
+    HANDLE hProcess = execute_and_close_handles(s, hStdInput, hStdOutput,
+                                                hStdError);
 
     DWORD dwRes = WaitForSingleObject(hProcess, INFINITE);
     DIE(dwRes == WAIT_FAILED, "WaitForSingleObject");
@@ -240,16 +233,16 @@ static DWORD do_on_pipe(command_t *cmd1, command_t *cmd2, int level,
     {
         HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
         HANDLE hStderr1 = GetStdHandle(STD_ERROR_HANDLE);
-        hProcess1 = redirect_and_create_process(cmd1->scmd, &hStdin, &writePipe,
-                                                &hStderr1);
+        hProcess1 = redirect_and_execute(cmd1->scmd, &hStdin, &writePipe,
+                                         &hStderr1);
     }
 
     HANDLE hProcess2;
     {
         HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
         HANDLE hStderr2 = GetStdHandle(STD_ERROR_HANDLE);
-        hProcess2 = redirect_and_create_process(cmd2->scmd, &readPipe, &hStdout,
-                                                &hStderr2);
+        hProcess2 = redirect_and_execute(cmd2->scmd, &readPipe, &hStdout,
+                                         &hStderr2);
     }
 
     DWORD dwRes = WaitForSingleObject(hProcess1, INFINITE);
