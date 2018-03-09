@@ -190,24 +190,25 @@ DWORD parse_command(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait)
     case OP_NONE:
         return parse_simple(c->scmd, hStdin, hStdout, wait);
     case OP_SEQUENTIAL:
-        parse_command(c->cmd1, hStdin, hStdout, wait);
-        return parse_command(c->cmd2, hStdin, hStdout, wait);
+        parse_command(c->cmd1, hStdin, hStdout, true);
+        return parse_command(c->cmd2, hStdin, hStdout, true);
     case OP_PARALLEL:
-        break;
+        parse_command(c->cmd1, hStdin, hStdout, false);
+        return parse_command(c->cmd2, hStdin, hStdout, true);
     case OP_CONDITIONAL_NZERO: {
-        DWORD ret = parse_command(c->cmd1, hStdin, hStdout, wait);
+        DWORD ret = parse_command(c->cmd1, hStdin, hStdout, true);
         if (ret == EXIT_SUCCESS) {
             return ret;
         } else {
-            return parse_command(c->cmd2, hStdin, hStdout, wait);
+            return parse_command(c->cmd2, hStdin, hStdout, true);
         }
     }
     case OP_CONDITIONAL_ZERO: {
-        DWORD ret = parse_command(c->cmd1, hStdin, hStdout, wait);
+        DWORD ret = parse_command(c->cmd1, hStdin, hStdout, true);
         if (ret != EXIT_SUCCESS) {
             return ret;
         } else {
-            return parse_command(c->cmd2, hStdin, hStdout, wait);
+            return parse_command(c->cmd2, hStdin, hStdout, true);
         }
     }
     case OP_PIPE:
