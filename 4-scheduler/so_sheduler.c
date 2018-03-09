@@ -1,4 +1,7 @@
 #include "so_scheduler.h"
+#include <stdbool.h>
+
+static bool initialized = false;
 
 /*
  * creates and initializes scheduler
@@ -8,9 +11,11 @@
  */
 DECL_PREFIX int so_init(unsigned int time_quantum, unsigned int io)
 {
-    if (time_quantum == 0 || io > SO_MAX_NUM_EVENTS) {
+    if (time_quantum == 0 || io > SO_MAX_NUM_EVENTS || initialized) {
         return -1;
     }
+
+    initialized = true;
 
     return 0;
 }
@@ -59,5 +64,5 @@ DECL_PREFIX void so_exec(void)
  */
 DECL_PREFIX void so_end(void)
 {
-    return;
+    initialized = false;
 }
