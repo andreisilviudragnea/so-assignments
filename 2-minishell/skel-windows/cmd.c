@@ -21,6 +21,7 @@ create_process(LPSTR command, HANDLE hStdin, HANDLE hStdout, HANDLE hStdErr)
                              &si, &pi);
     if (ret == FALSE) {
         fprintf(stderr, "Execution failed for '%s'\n", command);
+        fflush(stderr);
         return NULL;
     }
 
