@@ -19,7 +19,10 @@ create_process(LPSTR command, HANDLE hStdin, HANDLE hStdout, HANDLE hStdErr)
 
     BOOL ret = CreateProcess(NULL, command, NULL, NULL, TRUE, 0, NULL, NULL,
                              &si, &pi);
-    DIE(ret == FALSE, "CreateProcess");
+    if (ret == FALSE) {
+        fprintf(stderr, "Execution failed for '%s'\n", command);
+        return NULL;
+    }
 
     return pi.hProcess;
 }
@@ -126,7 +129,7 @@ parse_simple(simple_command_t *s, HANDLE hStdin, HANDLE hStdout, bool wait)
 {
     char *command = get_argv(s);
 
-    if (strcmp(command, "exit") == 0) {
+    if (strcmp(command, "exit") == 0 || strcmp(command, "quit") == 0) {
         free(command);
         return SHELL_EXIT;
     }
@@ -147,6 +150,9 @@ parse_simple(simple_command_t *s, HANDLE hStdin, HANDLE hStdout, bool wait)
     }
 
     HANDLE hProcess = execute_and_close_handles(s, hStdin, hStdout, hStdError);
+    if (hProcess == NULL) {
+        return EXIT_FAILURE;
+    }
 
     if (!wait) {
         return EXIT_SUCCESS;
