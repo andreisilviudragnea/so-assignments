@@ -239,7 +239,7 @@ static word_t * add_word_to_list(word_t * w, word_t * lst)
 %left SEQUENTIAL
 %left PARALLEL
 %left CONDITIONAL_NZERO CONDITIONAL_ZERO
-%left PIPE
+%right PIPE
 
 %type <command_un> command
 %type <exe_un> exe_name

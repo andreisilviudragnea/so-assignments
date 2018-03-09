@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.0.2.  */
+/* A Bison parser, made by GNU Bison 3.0.4.  */
 
 /* Bison implementation for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "3.0.2"
+#define YYBISON_VERSION "3.0.4"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -339,7 +339,7 @@ extern int yydebug;
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef union YYSTYPE YYSTYPE;
+
 union YYSTYPE
 {
 #line 221 "parser.y" /* yacc.c:355  */
@@ -354,6 +354,8 @@ union YYSTYPE
 
 #line 356 "parser.tab.c" /* yacc.c:355  */
 };
+
+typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
 #endif
@@ -381,7 +383,7 @@ int yyparse (void);
 
 /* Copy the second part of user declarations.  */
 
-#line 385 "parser.tab.c" /* yacc.c:358  */
+#line 387 "parser.tab.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -734,7 +736,7 @@ static const yytype_int8 yypact[] =
       44,   -22,   -22,    14,   -22,   -22,    10,    -5,   -22,     3,
      100,   -22,   -22,   100,   -22,   -22,   -22,     9,     9,     9,
        9,     9,   113,    -6,   -22,   -22,   113,   106,     7,     2,
-       2,   -22,    30,    -6,   100,    38,    40,    49,    53,    55,
+       2,     2,    30,    -6,   100,    38,    40,    49,    53,    55,
       58,   113,    -6,   113,    64,   113,    67,   113,    69,   113,
       73,   113,    78,   113,    82,    -6,   100,    84,   -22,    87,
      -22,    93,   -22,    96,   -22,    98,   -22,   102,   -22,   -22,
@@ -1615,7 +1617,7 @@ yyreduce:
 		command_root = (yyvsp[-1].command_un);
 		YYACCEPT;
 	}
-#line 1619 "parser.tab.c" /* yacc.c:1646  */
+#line 1621 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 3:
@@ -1624,7 +1626,7 @@ yyreduce:
 		command_root = (yyvsp[-1].command_un);
 		YYACCEPT;
 	}
-#line 1628 "parser.tab.c" /* yacc.c:1646  */
+#line 1630 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 4:
@@ -1633,7 +1635,7 @@ yyreduce:
 		command_root = NULL;
 		YYACCEPT;
 	}
-#line 1637 "parser.tab.c" /* yacc.c:1646  */
+#line 1639 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 5:
@@ -1642,7 +1644,7 @@ yyreduce:
 		command_root = NULL;
 		YYACCEPT;
 	}
-#line 1646 "parser.tab.c" /* yacc.c:1646  */
+#line 1648 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 6:
@@ -1651,7 +1653,7 @@ yyreduce:
 		command_root = NULL;
 		YYACCEPT;
 	}
-#line 1655 "parser.tab.c" /* yacc.c:1646  */
+#line 1657 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 7:
@@ -1660,7 +1662,7 @@ yyreduce:
 		command_root = NULL;
 		YYACCEPT;
 	}
-#line 1664 "parser.tab.c" /* yacc.c:1646  */
+#line 1666 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 8:
@@ -1668,7 +1670,7 @@ yyreduce:
     {
 		(yyval.command_un) = new_command((yyvsp[0].simple_command_un));
 	}
-#line 1672 "parser.tab.c" /* yacc.c:1646  */
+#line 1674 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 9:
@@ -1676,7 +1678,7 @@ yyreduce:
     {
 		(yyval.command_un) = bind_commands((yyvsp[-2].command_un), (yyvsp[0].command_un), OP_SEQUENTIAL);
 	}
-#line 1680 "parser.tab.c" /* yacc.c:1646  */
+#line 1682 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 10:
@@ -1684,7 +1686,7 @@ yyreduce:
     {
 		(yyval.command_un) = bind_commands((yyvsp[-2].command_un), (yyvsp[0].command_un), OP_PARALLEL);
 	}
-#line 1688 "parser.tab.c" /* yacc.c:1646  */
+#line 1690 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 11:
@@ -1692,7 +1694,7 @@ yyreduce:
     {
 		(yyval.command_un) = bind_commands((yyvsp[-2].command_un), (yyvsp[0].command_un), OP_CONDITIONAL_ZERO);
 	}
-#line 1696 "parser.tab.c" /* yacc.c:1646  */
+#line 1698 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 12:
@@ -1700,7 +1702,7 @@ yyreduce:
     {
 		(yyval.command_un) = bind_commands((yyvsp[-2].command_un), (yyvsp[0].command_un), OP_CONDITIONAL_NZERO);
 	}
-#line 1704 "parser.tab.c" /* yacc.c:1646  */
+#line 1706 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 13:
@@ -1708,7 +1710,7 @@ yyreduce:
     {
 		(yyval.command_un) = bind_commands((yyvsp[-2].command_un), (yyvsp[0].command_un), OP_PIPE);
 	}
-#line 1712 "parser.tab.c" /* yacc.c:1646  */
+#line 1714 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 14:
@@ -1716,7 +1718,7 @@ yyreduce:
     {
 		(yyval.simple_command_un) = bind_parts((yyvsp[-3].exe_un), (yyvsp[-1].params_un), (yyvsp[0].redirect_un));
 	}
-#line 1720 "parser.tab.c" /* yacc.c:1646  */
+#line 1722 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 15:
@@ -1724,7 +1726,7 @@ yyreduce:
     {
 		(yyval.simple_command_un) = bind_parts((yyvsp[-4].exe_un), (yyvsp[-2].params_un), (yyvsp[0].redirect_un));
 	}
-#line 1728 "parser.tab.c" /* yacc.c:1646  */
+#line 1730 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 16:
@@ -1732,7 +1734,7 @@ yyreduce:
     {
 		(yyval.simple_command_un) = bind_parts((yyvsp[-1].exe_un), NULL, (yyvsp[0].redirect_un));
 	}
-#line 1736 "parser.tab.c" /* yacc.c:1646  */
+#line 1738 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 17:
@@ -1740,7 +1742,7 @@ yyreduce:
     {
 		(yyval.simple_command_un) = bind_parts((yyvsp[-2].exe_un), NULL, (yyvsp[0].redirect_un));
 	}
-#line 1744 "parser.tab.c" /* yacc.c:1646  */
+#line 1746 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 18:
@@ -1748,7 +1750,7 @@ yyreduce:
     {
 		(yyval.exe_un) = (yyvsp[0].word_un);
 	}
-#line 1752 "parser.tab.c" /* yacc.c:1646  */
+#line 1754 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 19:
@@ -1756,7 +1758,7 @@ yyreduce:
     {
 		(yyval.exe_un) = (yyvsp[0].word_un);
 	}
-#line 1760 "parser.tab.c" /* yacc.c:1646  */
+#line 1762 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 20:
@@ -1765,7 +1767,7 @@ yyreduce:
 		(yyval.params_un) = add_word_to_list((yyvsp[0].word_un), (yyvsp[-2].params_un));
 		assert((yyval.params_un) == (yyvsp[-2].params_un));
 	}
-#line 1769 "parser.tab.c" /* yacc.c:1646  */
+#line 1771 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 21:
@@ -1773,7 +1775,7 @@ yyreduce:
     {
 		(yyval.params_un) = (yyvsp[0].word_un);
 	}
-#line 1777 "parser.tab.c" /* yacc.c:1646  */
+#line 1779 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 22:
@@ -1784,7 +1786,7 @@ yyreduce:
 		(yyval.redirect_un).red_e = NULL;
 		(yyval.redirect_un).red_flags = IO_REGULAR;
 	}
-#line 1788 "parser.tab.c" /* yacc.c:1646  */
+#line 1790 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 23:
@@ -1794,7 +1796,7 @@ yyreduce:
 		(yyvsp[-2].redirect_un).red_e = add_word_to_list((yyvsp[0].word_un), (yyvsp[-2].redirect_un).red_e);
 		(yyval.redirect_un) = (yyvsp[-2].redirect_un);
 	}
-#line 1798 "parser.tab.c" /* yacc.c:1646  */
+#line 1800 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 24:
@@ -1803,7 +1805,7 @@ yyreduce:
 		(yyvsp[-2].redirect_un).red_e = add_word_to_list((yyvsp[0].word_un), (yyvsp[-2].redirect_un).red_e);
 		(yyval.redirect_un) = (yyvsp[-2].redirect_un);
 	}
-#line 1807 "parser.tab.c" /* yacc.c:1646  */
+#line 1809 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 25:
@@ -1812,7 +1814,7 @@ yyreduce:
 		(yyvsp[-2].redirect_un).red_o = add_word_to_list((yyvsp[0].word_un), (yyvsp[-2].redirect_un).red_o);
 		(yyval.redirect_un) = (yyvsp[-2].redirect_un);
 	}
-#line 1816 "parser.tab.c" /* yacc.c:1646  */
+#line 1818 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 26:
@@ -1822,7 +1824,7 @@ yyreduce:
 		(yyvsp[-2].redirect_un).red_flags |= IO_ERR_APPEND;
 		(yyval.redirect_un) = (yyvsp[-2].redirect_un);
 	}
-#line 1826 "parser.tab.c" /* yacc.c:1646  */
+#line 1828 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 27:
@@ -1832,7 +1834,7 @@ yyreduce:
 		(yyvsp[-2].redirect_un).red_flags |= IO_OUT_APPEND;
 		(yyval.redirect_un) = (yyvsp[-2].redirect_un);
 	}
-#line 1836 "parser.tab.c" /* yacc.c:1646  */
+#line 1838 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 28:
@@ -1841,7 +1843,7 @@ yyreduce:
 		(yyvsp[-2].redirect_un).red_i = add_word_to_list((yyvsp[0].word_un), (yyvsp[-2].redirect_un).red_i);
 		(yyval.redirect_un) = (yyvsp[-2].redirect_un);
 	}
-#line 1845 "parser.tab.c" /* yacc.c:1646  */
+#line 1847 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 29:
@@ -1851,7 +1853,7 @@ yyreduce:
 		(yyvsp[-3].redirect_un).red_e = add_word_to_list((yyvsp[-1].word_un), (yyvsp[-3].redirect_un).red_e);
 		(yyval.redirect_un) = (yyvsp[-3].redirect_un);
 	}
-#line 1855 "parser.tab.c" /* yacc.c:1646  */
+#line 1857 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 30:
@@ -1860,7 +1862,7 @@ yyreduce:
 		(yyvsp[-3].redirect_un).red_e = add_word_to_list((yyvsp[-1].word_un), (yyvsp[-3].redirect_un).red_e);
 		(yyval.redirect_un) = (yyvsp[-3].redirect_un);
 	}
-#line 1864 "parser.tab.c" /* yacc.c:1646  */
+#line 1866 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 31:
@@ -1869,7 +1871,7 @@ yyreduce:
 		(yyvsp[-3].redirect_un).red_o = add_word_to_list((yyvsp[-1].word_un), (yyvsp[-3].redirect_un).red_o);
 		(yyval.redirect_un) = (yyvsp[-3].redirect_un);
 	}
-#line 1873 "parser.tab.c" /* yacc.c:1646  */
+#line 1875 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 32:
@@ -1879,7 +1881,7 @@ yyreduce:
 		(yyvsp[-3].redirect_un).red_flags |= IO_ERR_APPEND;
 		(yyval.redirect_un) = (yyvsp[-3].redirect_un);
 	}
-#line 1883 "parser.tab.c" /* yacc.c:1646  */
+#line 1885 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 33:
@@ -1889,7 +1891,7 @@ yyreduce:
 		(yyvsp[-3].redirect_un).red_flags |= IO_OUT_APPEND;
 		(yyval.redirect_un) = (yyvsp[-3].redirect_un);
 	}
-#line 1893 "parser.tab.c" /* yacc.c:1646  */
+#line 1895 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 34:
@@ -1898,7 +1900,7 @@ yyreduce:
 		(yyvsp[-3].redirect_un).red_i = add_word_to_list((yyvsp[-1].word_un), (yyvsp[-3].redirect_un).red_i);
 		(yyval.redirect_un) = (yyvsp[-3].redirect_un);
 	}
-#line 1902 "parser.tab.c" /* yacc.c:1646  */
+#line 1904 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 35:
@@ -1908,7 +1910,7 @@ yyreduce:
 		(yyvsp[-3].redirect_un).red_e = add_word_to_list((yyvsp[0].word_un), (yyvsp[-3].redirect_un).red_e);
 		(yyval.redirect_un) = (yyvsp[-3].redirect_un);
 	}
-#line 1912 "parser.tab.c" /* yacc.c:1646  */
+#line 1914 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 36:
@@ -1917,7 +1919,7 @@ yyreduce:
 		(yyvsp[-3].redirect_un).red_e = add_word_to_list((yyvsp[0].word_un), (yyvsp[-3].redirect_un).red_e);
 		(yyval.redirect_un) = (yyvsp[-3].redirect_un);
 	}
-#line 1921 "parser.tab.c" /* yacc.c:1646  */
+#line 1923 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 37:
@@ -1926,7 +1928,7 @@ yyreduce:
 		(yyvsp[-3].redirect_un).red_o = add_word_to_list((yyvsp[0].word_un), (yyvsp[-3].redirect_un).red_o);
 		(yyval.redirect_un) = (yyvsp[-3].redirect_un);
 	}
-#line 1930 "parser.tab.c" /* yacc.c:1646  */
+#line 1932 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 38:
@@ -1936,7 +1938,7 @@ yyreduce:
 		(yyvsp[-3].redirect_un).red_flags |= IO_ERR_APPEND;
 		(yyval.redirect_un) = (yyvsp[-3].redirect_un);
 	}
-#line 1940 "parser.tab.c" /* yacc.c:1646  */
+#line 1942 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 39:
@@ -1946,7 +1948,7 @@ yyreduce:
 		(yyvsp[-3].redirect_un).red_flags |= IO_OUT_APPEND;
 		(yyval.redirect_un) = (yyvsp[-3].redirect_un);
 	}
-#line 1950 "parser.tab.c" /* yacc.c:1646  */
+#line 1952 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 40:
@@ -1955,7 +1957,7 @@ yyreduce:
 		(yyvsp[-3].redirect_un).red_i = add_word_to_list((yyvsp[0].word_un), (yyvsp[-3].redirect_un).red_i);
 		(yyval.redirect_un) = (yyvsp[-3].redirect_un);
 	}
-#line 1959 "parser.tab.c" /* yacc.c:1646  */
+#line 1961 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 41:
@@ -1965,7 +1967,7 @@ yyreduce:
 		(yyvsp[-4].redirect_un).red_e = add_word_to_list((yyvsp[-1].word_un), (yyvsp[-4].redirect_un).red_e);
 		(yyval.redirect_un) = (yyvsp[-4].redirect_un);
 	}
-#line 1969 "parser.tab.c" /* yacc.c:1646  */
+#line 1971 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 42:
@@ -1974,7 +1976,7 @@ yyreduce:
 		(yyvsp[-4].redirect_un).red_e = add_word_to_list((yyvsp[-1].word_un), (yyvsp[-4].redirect_un).red_e);
 		(yyval.redirect_un) = (yyvsp[-4].redirect_un);
 	}
-#line 1978 "parser.tab.c" /* yacc.c:1646  */
+#line 1980 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 43:
@@ -1983,7 +1985,7 @@ yyreduce:
 		(yyvsp[-4].redirect_un).red_o = add_word_to_list((yyvsp[-1].word_un), (yyvsp[-4].redirect_un).red_o);
 		(yyval.redirect_un) = (yyvsp[-4].redirect_un);
 	}
-#line 1987 "parser.tab.c" /* yacc.c:1646  */
+#line 1989 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 44:
@@ -1993,7 +1995,7 @@ yyreduce:
 		(yyvsp[-4].redirect_un).red_flags |= IO_OUT_APPEND;
 		(yyval.redirect_un) = (yyvsp[-4].redirect_un);
 	}
-#line 1997 "parser.tab.c" /* yacc.c:1646  */
+#line 1999 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 45:
@@ -2003,7 +2005,7 @@ yyreduce:
 		(yyvsp[-4].redirect_un).red_flags |= IO_ERR_APPEND;
 		(yyval.redirect_un) = (yyvsp[-4].redirect_un);
 	}
-#line 2007 "parser.tab.c" /* yacc.c:1646  */
+#line 2009 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 46:
@@ -2012,7 +2014,7 @@ yyreduce:
 		(yyvsp[-4].redirect_un).red_i = add_word_to_list((yyvsp[-1].word_un), (yyvsp[-4].redirect_un).red_i);
 		(yyval.redirect_un) = (yyvsp[-4].redirect_un);
 	}
-#line 2016 "parser.tab.c" /* yacc.c:1646  */
+#line 2018 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 47:
@@ -2020,7 +2022,7 @@ yyreduce:
     {
 		(yyval.word_un) = add_part_to_word(new_word((yyvsp[0].string_un), false), (yyvsp[-1].word_un));
 	}
-#line 2024 "parser.tab.c" /* yacc.c:1646  */
+#line 2026 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 48:
@@ -2028,7 +2030,7 @@ yyreduce:
     {
 		(yyval.word_un) = add_part_to_word(new_word((yyvsp[0].string_un), true), (yyvsp[-1].word_un));
 	}
-#line 2032 "parser.tab.c" /* yacc.c:1646  */
+#line 2034 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 49:
@@ -2036,7 +2038,7 @@ yyreduce:
     {
 		(yyval.word_un) = new_word((yyvsp[0].string_un), false);
 	}
-#line 2040 "parser.tab.c" /* yacc.c:1646  */
+#line 2042 "parser.tab.c" /* yacc.c:1646  */
     break;
 
   case 50:
@@ -2044,11 +2046,11 @@ yyreduce:
     {
 		(yyval.word_un) = new_word((yyvsp[0].string_un), true);
 	}
-#line 2048 "parser.tab.c" /* yacc.c:1646  */
+#line 2050 "parser.tab.c" /* yacc.c:1646  */
     break;
 
 
-#line 2052 "parser.tab.c" /* yacc.c:1646  */
+#line 2054 "parser.tab.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires

@@ -131,7 +131,8 @@ parse_simple(simple_command_t *s, HANDLE hStdin, HANDLE hStdout, bool wait)
         return SHELL_EXIT;
     }
 
-    if (strchr(get_argv(s), '=') != NULL) {
+    if (s->verb->next_part != NULL &&
+        strcmp(s->verb->next_part->string, "=") == 0) {
         BOOL ret = SetEnvironmentVariable(s->verb->string,
                                           s->verb->next_part->next_part->string);
         return ret == FALSE ? EXIT_FAILURE : EXIT_SUCCESS;
@@ -158,14 +159,6 @@ parse_simple(simple_command_t *s, HANDLE hStdin, HANDLE hStdout, bool wait)
     DIE(bRes == FALSE, "GetExitCode");
 
     return dwRes;
-}
-
-static bool do_in_parallel(command_t *cmd1, command_t *cmd2, int level,
-                           command_t *father)
-{
-    /* TODO execute cmd1 and cmd2 simultaneously */
-
-    return true; /* TODO replace with actual exit status */
 }
 
 static DWORD
