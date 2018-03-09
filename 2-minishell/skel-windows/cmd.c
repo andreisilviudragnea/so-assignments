@@ -162,7 +162,7 @@ parse_simple(simple_command_t *s, HANDLE hStdin, HANDLE hStdout, bool wait)
 }
 
 static DWORD
-do_on_pipe(command_t *cmd2, HANDLE hStdin, HANDLE hStdout, command_t *cmd1)
+do_on_pipe(command_t *cmd1, command_t *cmd2, HANDLE hStdin, HANDLE hStdout)
 {
     HANDLE readPipe;
     HANDLE writePipe;
@@ -177,6 +177,89 @@ do_on_pipe(command_t *cmd2, HANDLE hStdin, HANDLE hStdout, command_t *cmd1)
     return parse_command(cmd2, readPipe, hStdout, true);
 }
 
+struct arg {
+    command_t *c;
+    HANDLE hStdin;
+    HANDLE hStdout;
+    bool wait;
+};
+
+static DWORD WINAPI ThreadFunc(LPVOID lpParameter)
+{
+    struct arg *args = lpParameter;
+    parse_command(args->c, args->hStdin, args->hStdout, args->wait);
+    free(args);
+    return EXIT_SUCCESS;
+}
+
+static char *clone_string(const char *string)
+{
+    if (string == NULL) {
+        return NULL;
+    }
+    return strdup(string);
+}
+
+static word_t *clone_word(const word_t *word)
+{
+    if (word == NULL) {
+        return NULL;
+    }
+    word_t *copy = malloc(sizeof(*word));
+    DIE(copy == NULL, "malloc");
+    copy->string = clone_string(word->string);
+    copy->expand = word->expand;
+    copy->next_part = clone_word(word->next_part);
+    copy->next_word = clone_word(word->next_word);
+    return copy;
+}
+
+static simple_command_t *
+clone_simple_command(const simple_command_t *simple_command,
+                     struct command_t *up)
+{
+    if (simple_command == NULL) {
+        return NULL;
+    }
+    simple_command_t *copy = malloc(sizeof(*copy));
+    DIE(copy == NULL, "malloc");
+    copy->verb = clone_word(simple_command->verb);
+    copy->params = clone_word(simple_command->params);
+    copy->in = clone_word(simple_command->in);
+    copy->out = clone_word(simple_command->out);
+    copy->err = clone_word(simple_command->err);
+    copy->io_flags = simple_command->io_flags;
+    copy->up = up;
+    return copy;
+}
+
+static command_t *clone_command(const command_t *c, command_t *up)
+{
+    if (c == NULL) {
+        return NULL;
+    }
+    command_t *copy = malloc(sizeof(*copy));
+    DIE(copy == NULL, "malloc");
+    copy->up = up;
+    copy->cmd1 = clone_command(c->cmd1, copy);
+    copy->cmd2 = clone_command(c->cmd2, copy);
+    copy->op = c->op;
+    copy->scmd = clone_simple_command(c->scmd, copy);
+    return copy;
+}
+
+static void parse_async(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait)
+{
+    struct arg *args = malloc(sizeof(*args));
+    DIE(args == NULL, "malloc");
+    args->c = clone_command(c, NULL);
+    args->hStdin = hStdin;
+    args->hStdout = hStdout;
+    args->wait = wait;
+    HANDLE hThread = CreateThread(NULL, 0, ThreadFunc, args, 0, NULL);
+    DIE(hThread == NULL, "CreateThread");
+}
+
 DWORD parse_command(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait)
 {
     switch (c->op) {
@@ -186,26 +269,26 @@ DWORD parse_command(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait)
         parse_command(c->cmd1, hStdin, hStdout, true);
         return parse_command(c->cmd2, hStdin, hStdout, true);
     case OP_PARALLEL:
-        parse_command(c->cmd1, hStdin, hStdout, false);
+        parse_async(c->cmd1, hStdin, hStdout, true);
         return parse_command(c->cmd2, hStdin, hStdout, true);
     case OP_CONDITIONAL_NZERO: {
-        DWORD ret = parse_command(c->cmd1, hStdin, hStdout, true);
+        DWORD ret = parse_command(c->cmd1, hStdin, hStdout, wait);
         if (ret == EXIT_SUCCESS) {
             return ret;
         } else {
-            return parse_command(c->cmd2, hStdin, hStdout, true);
+            return parse_command(c->cmd2, hStdin, hStdout, wait);
         }
     }
     case OP_CONDITIONAL_ZERO: {
-        DWORD ret = parse_command(c->cmd1, hStdin, hStdout, true);
+        DWORD ret = parse_command(c->cmd1, hStdin, hStdout, wait);
         if (ret != EXIT_SUCCESS) {
             return ret;
         } else {
-            return parse_command(c->cmd2, hStdin, hStdout, true);
+            return parse_command(c->cmd2, hStdin, hStdout, wait);
         }
     }
     case OP_PIPE:
-        return do_on_pipe(c->cmd2, hStdin, hStdout, c->cmd1);
+        return do_on_pipe(c->cmd1, c->cmd2, hStdin, hStdout);
     default:
         return SHELL_EXIT;
     }
