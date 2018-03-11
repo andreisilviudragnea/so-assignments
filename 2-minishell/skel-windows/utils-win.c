@@ -20,7 +20,7 @@
 /**
  * Debug method, used by DIE macro.
  */
-VOID PrintLastError(const PCHAR message)
+VOID PrintLastError(const char *message)
 {
 	CHAR errBuff[1024];
 

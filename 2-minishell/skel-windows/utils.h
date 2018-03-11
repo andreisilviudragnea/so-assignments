@@ -14,7 +14,7 @@
 extern "C" {
 #endif
 
-VOID PrintLastError(const PCHAR message);
+VOID PrintLastError(const char *message);
 
 /* useful macro for handling error codes */
 #define DIE(assertion, call_description) \
