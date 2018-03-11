@@ -193,7 +193,7 @@ struct arg {
 
 static DWORD WINAPI ThreadFunc(LPVOID lpParameter)
 {
-    struct arg *args = lpParameter;
+    auto *args = static_cast<arg *>(lpParameter);
     parse_command(args->c, args->hStdin, args->hStdout, args->wait);
     free(args);
     return EXIT_SUCCESS;
@@ -212,7 +212,7 @@ static word_t *clone_word(const word_t *word)
     if (word == NULL) {
         return NULL;
     }
-    word_t *copy = malloc(sizeof(*word));
+    word_t *copy = static_cast<word_t *>(malloc(sizeof(*word)));
     DIE(copy == NULL, "malloc");
     copy->string = clone_string(word->string);
     copy->expand = word->expand;
@@ -228,7 +228,7 @@ clone_simple_command(const simple_command_t *simple_command,
     if (simple_command == NULL) {
         return NULL;
     }
-    simple_command_t *copy = malloc(sizeof(*copy));
+    simple_command_t *copy = static_cast<simple_command_t *>(malloc(sizeof(*copy)));
     DIE(copy == NULL, "malloc");
     copy->verb = clone_word(simple_command->verb);
     copy->params = clone_word(simple_command->params);
@@ -245,7 +245,7 @@ static command_t *clone_command(const command_t *c, command_t *up)
     if (c == NULL) {
         return NULL;
     }
-    command_t *copy = malloc(sizeof(*copy));
+    command_t *copy = static_cast<command_t *>(malloc(sizeof(*copy)));
     DIE(copy == NULL, "malloc");
     copy->up = up;
     copy->cmd1 = clone_command(c->cmd1, copy);
@@ -257,7 +257,7 @@ static command_t *clone_command(const command_t *c, command_t *up)
 
 static void parse_async(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait)
 {
-    struct arg *args = malloc(sizeof(*args));
+    struct arg *args = static_cast<arg *>(malloc(sizeof(*args)));
     DIE(args == NULL, "malloc");
     args->c = clone_command(c, NULL);
     args->hStdin = hStdin;
