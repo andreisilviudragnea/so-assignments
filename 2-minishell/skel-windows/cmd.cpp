@@ -28,17 +28,39 @@ create_process(LPSTR command, HANDLE hStdin, HANDLE hStdout, HANDLE hStdErr)
     return pi.hProcess;
 }
 
+static void close_in(HANDLE in) {
+    if (in != GetStdHandle(STD_INPUT_HANDLE)) {
+        BOOL ret = CloseHandle(in);
+        DIE(ret == FALSE, "CloseHandle in");
+    }
+}
+
+static void close_out(HANDLE out) {
+    if (out != GetStdHandle(STD_OUTPUT_HANDLE)) {
+        BOOL ret = CloseHandle(out);
+        DIE(ret == FALSE, "CloseHandle out");
+    }
+}
+
+static void close_err(HANDLE err, HANDLE out) {
+    if (err != GetStdHandle(STD_ERROR_HANDLE) && err != out) {
+        BOOL ret = CloseHandle(err);
+        DIE(ret == FALSE, "CloseHandle err");
+    }
+}
+
 static void
-redirect(const simple_command_t *s, PHANDLE hStdInput, PHANDLE hStdOutput,
-         PHANDLE hStdError)
+redirect(const simple_command_t &s, HANDLE &hStdInput, HANDLE &hStdOutput,
+         HANDLE &hStdError)
 {
     SECURITY_ATTRIBUTES sa;
     ZeroMemory(&sa, sizeof(sa));
     sa.bInheritHandle = TRUE;
 
-    char *in = get_word(s->in);
+    char *in = get_word(s.in);
     if (in != nullptr) {
-        *hStdInput = CreateFile(
+        close_in(hStdInput);
+        hStdInput = CreateFile(
             in,
             GENERIC_READ,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -48,80 +70,71 @@ redirect(const simple_command_t *s, PHANDLE hStdInput, PHANDLE hStdOutput,
             nullptr
         );
         free(in);
-        DIE(*hStdInput == INVALID_HANDLE_VALUE, "CreateFile in");
+        DIE(hStdInput == INVALID_HANDLE_VALUE, "CreateFile in");
     }
 
-    char *out = get_word(s->out);
+    char *out = get_word(s.out);
     if (out != nullptr) {
-        *hStdOutput = CreateFile(
+        close_out(hStdOutput);
+        hStdOutput = CreateFile(
             out,
             GENERIC_WRITE | GENERIC_READ,
             FILE_SHARE_WRITE | FILE_SHARE_READ,
             &sa,
-            s->io_flags & IO_OUT_APPEND ? OPEN_ALWAYS : CREATE_ALWAYS,
+            s.io_flags & IO_OUT_APPEND ? OPEN_ALWAYS : CREATE_ALWAYS,
             FILE_ATTRIBUTE_NORMAL,
             nullptr
         );
-        DIE(*hStdOutput == INVALID_HANDLE_VALUE, "CreateFile out");
+        DIE(hStdOutput == INVALID_HANDLE_VALUE, "CreateFile out");
     }
 
-    if (s->io_flags & IO_OUT_APPEND) {
-        DWORD pos = SetFilePointer(*hStdOutput, 0, nullptr, FILE_END);
+    if (s.io_flags & IO_OUT_APPEND) {
+        DWORD pos = SetFilePointer(hStdOutput, 0, nullptr, FILE_END);
         DIE(pos == INVALID_SET_FILE_POINTER, "SetFilePointer out");
     }
 
-    char *err = get_word(s->err);
+    char *err = get_word(s.err);
     if (err != nullptr) {
+//        close_err(hStdError, hStdOutput);
         if (out != nullptr && strcmp(out, err) == 0) {
-            *hStdError = *hStdOutput;
+            hStdError = hStdOutput;
         } else {
-            *hStdError = CreateFile(
+            hStdError = CreateFile(
                 err,
                 GENERIC_WRITE | GENERIC_READ,
                 FILE_SHARE_WRITE | FILE_SHARE_READ,
                 &sa,
-                s->io_flags & IO_ERR_APPEND ? OPEN_ALWAYS : CREATE_ALWAYS,
+                s.io_flags & IO_ERR_APPEND ? OPEN_ALWAYS : CREATE_ALWAYS,
                 FILE_ATTRIBUTE_NORMAL,
                 nullptr
             );
         }
         free(err);
-        DIE(*hStdError == INVALID_HANDLE_VALUE, "CreateFile err");
+        DIE(hStdError == INVALID_HANDLE_VALUE, "CreateFile err");
     }
 
     if (out != nullptr) {
         free(out);
     }
 
-    if (s->io_flags & IO_ERR_APPEND) {
-        DWORD pos = SetFilePointer(*hStdError, 0, nullptr, FILE_END);
+    if (s.io_flags & IO_ERR_APPEND) {
+        DWORD pos = SetFilePointer(hStdError, 0, nullptr, FILE_END);
         DIE(pos == INVALID_SET_FILE_POINTER, "SetFilePointer err");
     }
 }
 
-static void close_handles(HANDLE hStdInput, HANDLE hStdOutput, HANDLE hStdError)
+static void close_handles(HANDLE in, HANDLE out, HANDLE err)
 {
-    BOOL ret;
-    if (hStdError != GetStdHandle(STD_ERROR_HANDLE) &&
-        hStdError != hStdOutput) {
-        ret = CloseHandle(hStdError);
-        DIE(ret == FALSE, "CloseHandle err");
-    }
-    if (hStdOutput != GetStdHandle(STD_OUTPUT_HANDLE)) {
-        ret = CloseHandle(hStdOutput);
-        DIE(ret == FALSE, "CloseHandle out");
-    }
-    if (hStdInput != GetStdHandle(STD_INPUT_HANDLE)) {
-        ret = CloseHandle(hStdInput);
-        DIE(ret == FALSE, "CloseHandle in");
-    }
+    close_err(err, out);
+    close_out(out);
+    close_in(in);
 }
 
 static DWORD
-execute(const simple_command_t *s, HANDLE hStdInput, HANDLE hStdOutput,
-        HANDLE hStdError, PHANDLE hProcess)
+execute(const simple_command_t &s, HANDLE hStdInput, HANDLE hStdOutput,
+        HANDLE hStdError, HANDLE &hProcess)
 {
-    char *command = get_argv(s);
+    char *command = get_argv(&s);
     DWORD ret;
 
     if (strcmp(command, "exit") == 0 || strcmp(command, "quit") == 0) {
@@ -129,22 +142,22 @@ execute(const simple_command_t *s, HANDLE hStdInput, HANDLE hStdOutput,
         goto exit;
     }
 
-    if (s->verb->next_part != nullptr &&
-        strcmp(s->verb->next_part->string, "=") == 0) {
-        BOOL bRet = SetEnvironmentVariable(s->verb->string,
-                                           s->verb->next_part->next_part->string);
+    if (s.verb->next_part != nullptr &&
+        strcmp(s.verb->next_part->string, "=") == 0) {
+        BOOL bRet = SetEnvironmentVariable(s.verb->string,
+                                           s.verb->next_part->next_part->string);
         ret = bRet == FALSE ? EXIT_FAILURE : EXIT_SUCCESS;
         goto exit;
     }
 
-    if (strcmp(get_word(s->verb), "cd") == 0) {
-        BOOL bRet = SetCurrentDirectory(get_word(s->params));
+    if (strcmp(get_word(s.verb), "cd") == 0) {
+        BOOL bRet = SetCurrentDirectory(get_word(s.params));
         ret = bRet == FALSE ? EXIT_FAILURE : EXIT_SUCCESS;
         goto exit;
     }
 
-    *hProcess = create_process(command, hStdInput, hStdOutput, hStdError);
-    ret = *hProcess == nullptr ? EXIT_FAILURE : EXIT_SUCCESS;
+    hProcess = create_process(command, hStdInput, hStdOutput, hStdError);
+    ret = hProcess == nullptr ? EXIT_FAILURE : EXIT_SUCCESS;
 
 exit:
     free(command);
@@ -152,15 +165,14 @@ exit:
 }
 
 static DWORD
-parse_simple(simple_command_t *s, HANDLE hStdin, HANDLE hStdout, bool wait)
+parse_simple(const simple_command_t &s, HANDLE in, HANDLE out, bool wait)
 {
-    HANDLE hStdError = GetStdHandle(STD_ERROR_HANDLE);
-    redirect(s, &hStdin, &hStdout, &hStdError);
+    HANDLE err = GetStdHandle(STD_ERROR_HANDLE);
+    redirect(s, in, out, err);
 
     HANDLE hProcess = nullptr;
-    DWORD exitStatus = execute(s, hStdin, hStdout, hStdError,
-                               &hProcess);
-    close_handles(hStdin, hStdout, hStdError);
+    DWORD exitStatus = execute(s, in, out, err, hProcess);
+    close_handles(in, out, err);
 
     if (hProcess == nullptr) {
         return exitStatus;
@@ -281,7 +293,7 @@ DWORD parse_command(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait)
 {
     switch (c->op) {
     case OP_NONE:
-        return parse_simple(c->scmd, hStdin, hStdout, wait);
+        return parse_simple(*c->scmd, hStdin, hStdout, wait);
     case OP_SEQUENTIAL:
         parse_command(c->cmd1, hStdin, hStdout, true);
         return parse_command(c->cmd2, hStdin, hStdout, true);
