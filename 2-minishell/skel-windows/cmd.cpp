@@ -64,6 +64,21 @@ create_file(LPCSTR lpFileName, DWORD dwDesiredAccess,
                       dwCreationDisposition, dwFlagsAndAttributes, nullptr);
 }
 
+static HANDLE create_out(const char *filename, bool append) {
+    HANDLE h = create_file(filename, GENERIC_WRITE | GENERIC_READ,
+                           FILE_SHARE_WRITE | FILE_SHARE_READ,
+                           append ? OPEN_ALWAYS : CREATE_ALWAYS,
+                           FILE_ATTRIBUTE_NORMAL);
+    DIE(h == INVALID_HANDLE_VALUE, "CreateFile out");
+
+    if (append) {
+        DWORD pos = SetFilePointer(h, 0, nullptr, FILE_END);
+        DIE(pos == INVALID_SET_FILE_POINTER, "SetFilePointer out");
+    }
+
+    return h;
+}
+
 static void
 redirect(const simple_command_t &s, HANDLE &hStdInput, HANDLE &hStdOutput,
          HANDLE &hStdError) {
@@ -79,17 +94,8 @@ redirect(const simple_command_t &s, HANDLE &hStdInput, HANDLE &hStdOutput,
     std::unique_ptr<char, free_delete> out(get_word(s.out));
     if (out != nullptr) {
         close_out(hStdOutput);
-        hStdOutput = create_file(out.get(), GENERIC_WRITE | GENERIC_READ,
-                                 FILE_SHARE_WRITE | FILE_SHARE_READ,
-                                 s.io_flags & IO_OUT_APPEND ? OPEN_ALWAYS
-                                                            : CREATE_ALWAYS,
-                                 FILE_ATTRIBUTE_NORMAL);
-        DIE(hStdOutput == INVALID_HANDLE_VALUE, "CreateFile out");
-
-        if (s.io_flags & IO_OUT_APPEND) {
-            DWORD pos = SetFilePointer(hStdOutput, 0, nullptr, FILE_END);
-            DIE(pos == INVALID_SET_FILE_POINTER, "SetFilePointer out");
-        }
+        hStdOutput = create_out(out.get(),
+                                static_cast<bool>(s.io_flags & IO_OUT_APPEND));
     }
 
     std::unique_ptr<char, free_delete> err(get_word(s.err));
@@ -98,17 +104,8 @@ redirect(const simple_command_t &s, HANDLE &hStdInput, HANDLE &hStdOutput,
         if (out != nullptr && strcmp(out.get(), err.get()) == 0) {
             hStdError = hStdOutput;
         } else {
-            hStdError = create_file(err.get(), GENERIC_WRITE | GENERIC_READ,
-                                    FILE_SHARE_WRITE | FILE_SHARE_READ,
-                                    s.io_flags & IO_ERR_APPEND ? OPEN_ALWAYS
-                                                               : CREATE_ALWAYS,
-                                    FILE_ATTRIBUTE_NORMAL);
-        }
-        DIE(hStdError == INVALID_HANDLE_VALUE, "CreateFile err");
-
-        if (s.io_flags & IO_ERR_APPEND) {
-            DWORD pos = SetFilePointer(hStdError, 0, nullptr, FILE_END);
-            DIE(pos == INVALID_SET_FILE_POINTER, "SetFilePointer err");
+            hStdError = create_out(err.get(), static_cast<bool>(s.io_flags &
+                                                                IO_ERR_APPEND));
         }
     }
 }
