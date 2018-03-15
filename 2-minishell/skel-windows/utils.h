@@ -8,11 +8,8 @@
 
 #include "parser.h"
 #include <stdio.h>
+#include <string>
 #include <windows.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
 * Debug method, used by DIE macro.
@@ -46,15 +43,11 @@ static VOID PrintLastError(const char *message) {
 /**
  * Concatenate parts of the word to obtain the command
  */
-LPTSTR get_word(word_t *s);
+std::string get_word(word_t *s);
 
 /**
  * Parse arguments in order to succesfully process them using CreateProcess
  */
-LPTSTR get_argv(const simple_command_t *command);
-
-#ifdef __cplusplus
-}
-#endif
+std::string get_argv(const simple_command_t *command);
 
 #endif /* _UTILS_H */

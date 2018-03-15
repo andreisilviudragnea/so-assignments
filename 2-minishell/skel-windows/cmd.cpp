@@ -6,7 +6,8 @@
 #include <windows.h>
 
 static HANDLE
-create_process(LPSTR command, HANDLE hStdin, HANDLE hStdout, HANDLE hStdErr) {
+create_process(const std::string &command, HANDLE hStdin, HANDLE hStdout,
+               HANDLE hStdErr) {
     STARTUPINFO si;
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
@@ -18,8 +19,9 @@ create_process(LPSTR command, HANDLE hStdin, HANDLE hStdout, HANDLE hStdErr) {
     PROCESS_INFORMATION pi;
     ZeroMemory(&pi, sizeof(pi));
 
-    BOOL ret = CreateProcess(nullptr, command, nullptr, nullptr, TRUE, 0,
-                             nullptr, nullptr, &si, &pi);
+    BOOL ret = CreateProcess(nullptr, const_cast<LPSTR>(command.c_str()),
+                             nullptr, nullptr, TRUE, 0, nullptr, nullptr, &si,
+                             &pi);
     if (ret == FALSE) {
         std::cerr << "Execution failed for '" << command << "'" << std::endl;
         return nullptr;
@@ -48,10 +50,6 @@ static void close_err(HANDLE err, HANDLE out) {
         DIE(ret == FALSE, "CloseHandle err");
     }
 }
-
-struct free_delete {
-    void operator()(void *x) { free(x); }
-};
 
 static HANDLE
 create_file(LPCSTR lpFileName, DWORD dwDesiredAccess,
@@ -82,30 +80,30 @@ static HANDLE create_out(const char *filename, bool append) {
 static void
 redirect(const simple_command_t &s, HANDLE &hStdInput, HANDLE &hStdOutput,
          HANDLE &hStdError) {
-    std::unique_ptr<char, free_delete> in(get_word(s.in));
-    if (in != nullptr) {
+    std::string in = get_word(s.in);
+    if (!in.empty()) {
         close_in(hStdInput);
-        hStdInput = create_file(in.get(), GENERIC_READ,
+        hStdInput = create_file(in.c_str(), GENERIC_READ,
                                 FILE_SHARE_READ | FILE_SHARE_WRITE,
                                 OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL);
         DIE(hStdInput == INVALID_HANDLE_VALUE, "CreateFile in");
     }
 
-    std::unique_ptr<char, free_delete> out(get_word(s.out));
-    if (out != nullptr) {
+    std::string out = get_word(s.out);
+    if (!out.empty()) {
         close_out(hStdOutput);
-        hStdOutput = create_out(out.get(),
+        hStdOutput = create_out(out.c_str(),
                                 static_cast<bool>(s.io_flags & IO_OUT_APPEND));
     }
 
-    std::unique_ptr<char, free_delete> err(get_word(s.err));
-    if (err != nullptr) {
+    std::string err = get_word(s.err);
+    if (!err.empty()) {
         close_err(hStdError, hStdOutput);
-        if (out != nullptr && strcmp(out.get(), err.get()) == 0) {
+        if (!out.empty() && out == err) {
             hStdError = hStdOutput;
         } else {
-            hStdError = create_out(err.get(), static_cast<bool>(s.io_flags &
-                                                                IO_ERR_APPEND));
+            hStdError = create_out(err.c_str(), static_cast<bool>(s.io_flags &
+                                                                  IO_ERR_APPEND));
         }
     }
 }
@@ -119,10 +117,9 @@ static void close_handles(HANDLE in, HANDLE out, HANDLE err) {
 static DWORD
 execute(const simple_command_t &s, HANDLE hStdInput, HANDLE hStdOutput,
         HANDLE hStdError, HANDLE &hProcess) {
-    std::unique_ptr<char, free_delete> command(get_argv(&s));
+    std::string command = get_argv(&s);
 
-    if (strcmp(command.get(), "exit") == 0 ||
-        strcmp(command.get(), "quit") == 0) {
+    if (command == "exit" || command == "quit") {
         return SHELL_EXIT;
     }
 
@@ -133,12 +130,12 @@ execute(const simple_command_t &s, HANDLE hStdInput, HANDLE hStdOutput,
         return bRet == FALSE ? EXIT_FAILURE : EXIT_SUCCESS;
     }
 
-    if (strcmp(get_word(s.verb), "cd") == 0) {
-        BOOL bRet = SetCurrentDirectory(get_word(s.params));
+    if (get_word(s.verb) == "cd") {
+        BOOL bRet = SetCurrentDirectory(get_word(s.params).c_str());
         return bRet == FALSE ? EXIT_FAILURE : EXIT_SUCCESS;
     }
 
-    hProcess = create_process(command.get(), hStdInput, hStdOutput, hStdError);
+    hProcess = create_process(command, hStdInput, hStdOutput, hStdError);
     return hProcess == nullptr ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
