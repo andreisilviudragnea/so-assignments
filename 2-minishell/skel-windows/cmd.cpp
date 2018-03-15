@@ -4,8 +4,7 @@
 #include "parser.h"
 
 static HANDLE
-create_process(LPSTR command, HANDLE hStdin, HANDLE hStdout, HANDLE hStdErr)
-{
+create_process(LPSTR command, HANDLE hStdin, HANDLE hStdout, HANDLE hStdErr) {
     STARTUPINFO si;
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
@@ -49,26 +48,25 @@ static void close_err(HANDLE err, HANDLE out) {
     }
 }
 
-static void
-redirect(const simple_command_t &s, HANDLE &hStdInput, HANDLE &hStdOutput,
-         HANDLE &hStdError)
-{
+static HANDLE
+create_file(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
+            DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes) {
     SECURITY_ATTRIBUTES sa;
     ZeroMemory(&sa, sizeof(sa));
     sa.bInheritHandle = TRUE;
+    return CreateFile(lpFileName, dwDesiredAccess, dwShareMode, &sa,
+                      dwCreationDisposition, dwFlagsAndAttributes, nullptr);
+}
 
+static void
+redirect(const simple_command_t &s, HANDLE &hStdInput, HANDLE &hStdOutput,
+         HANDLE &hStdError) {
     char *in = get_word(s.in);
     if (in != nullptr) {
         close_in(hStdInput);
-        hStdInput = CreateFile(
-            in,
-            GENERIC_READ,
-            FILE_SHARE_READ | FILE_SHARE_WRITE,
-            &sa,
-            OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL,
-            nullptr
-        );
+        hStdInput = create_file(in, GENERIC_READ,
+                                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL);
         free(in);
         DIE(hStdInput == INVALID_HANDLE_VALUE, "CreateFile in");
     }
@@ -76,15 +74,11 @@ redirect(const simple_command_t &s, HANDLE &hStdInput, HANDLE &hStdOutput,
     char *out = get_word(s.out);
     if (out != nullptr) {
         close_out(hStdOutput);
-        hStdOutput = CreateFile(
-            out,
-            GENERIC_WRITE | GENERIC_READ,
-            FILE_SHARE_WRITE | FILE_SHARE_READ,
-            &sa,
-            s.io_flags & IO_OUT_APPEND ? OPEN_ALWAYS : CREATE_ALWAYS,
-            FILE_ATTRIBUTE_NORMAL,
-            nullptr
-        );
+        hStdOutput = create_file(out, GENERIC_WRITE | GENERIC_READ,
+                                 FILE_SHARE_WRITE | FILE_SHARE_READ,
+                                 s.io_flags & IO_OUT_APPEND ? OPEN_ALWAYS
+                                                            : CREATE_ALWAYS,
+                                 FILE_ATTRIBUTE_NORMAL);
         DIE(hStdOutput == INVALID_HANDLE_VALUE, "CreateFile out");
     }
 
@@ -99,15 +93,11 @@ redirect(const simple_command_t &s, HANDLE &hStdInput, HANDLE &hStdOutput,
         if (out != nullptr && strcmp(out, err) == 0) {
             hStdError = hStdOutput;
         } else {
-            hStdError = CreateFile(
-                err,
-                GENERIC_WRITE | GENERIC_READ,
-                FILE_SHARE_WRITE | FILE_SHARE_READ,
-                &sa,
-                s.io_flags & IO_ERR_APPEND ? OPEN_ALWAYS : CREATE_ALWAYS,
-                FILE_ATTRIBUTE_NORMAL,
-                nullptr
-            );
+            hStdError = create_file(err, GENERIC_WRITE | GENERIC_READ,
+                                    FILE_SHARE_WRITE | FILE_SHARE_READ,
+                                    s.io_flags & IO_ERR_APPEND ? OPEN_ALWAYS
+                                                               : CREATE_ALWAYS,
+                                    FILE_ATTRIBUTE_NORMAL);
         }
         free(err);
         DIE(hStdError == INVALID_HANDLE_VALUE, "CreateFile err");
@@ -123,8 +113,7 @@ redirect(const simple_command_t &s, HANDLE &hStdInput, HANDLE &hStdOutput,
     }
 }
 
-static void close_handles(HANDLE in, HANDLE out, HANDLE err)
-{
+static void close_handles(HANDLE in, HANDLE out, HANDLE err) {
     close_err(err, out);
     close_out(out);
     close_in(in);
@@ -132,8 +121,7 @@ static void close_handles(HANDLE in, HANDLE out, HANDLE err)
 
 static DWORD
 execute(const simple_command_t &s, HANDLE hStdInput, HANDLE hStdOutput,
-        HANDLE hStdError, HANDLE &hProcess)
-{
+        HANDLE hStdError, HANDLE &hProcess) {
     char *command = get_argv(&s);
     DWORD ret;
 
@@ -165,8 +153,7 @@ exit:
 }
 
 static DWORD
-parse_simple(const simple_command_t &s, HANDLE in, HANDLE out, bool wait)
-{
+parse_simple(const simple_command_t &s, HANDLE in, HANDLE out, bool wait) {
     HANDLE err = GetStdHandle(STD_ERROR_HANDLE);
     redirect(s, in, out, err);
 
@@ -195,8 +182,7 @@ parse_simple(const simple_command_t &s, HANDLE in, HANDLE out, bool wait)
 }
 
 static DWORD
-do_on_pipe(command_t *cmd1, command_t *cmd2, HANDLE hStdin, HANDLE hStdout)
-{
+do_on_pipe(command_t *cmd1, command_t *cmd2, HANDLE hStdin, HANDLE hStdout) {
     HANDLE readPipe;
     HANDLE writePipe;
     SECURITY_ATTRIBUTES sa;
@@ -217,24 +203,21 @@ struct arg {
     bool wait;
 };
 
-static DWORD WINAPI ThreadFunc(LPVOID lpParameter)
-{
+static DWORD WINAPI ThreadFunc(LPVOID lpParameter) {
     auto *args = static_cast<arg *>(lpParameter);
     parse_command(args->c, args->hStdin, args->hStdout, args->wait);
     free(args);
     return EXIT_SUCCESS;
 }
 
-static char *clone_string(const char *string)
-{
+static char *clone_string(const char *string) {
     if (string == nullptr) {
         return nullptr;
     }
     return strdup(string);
 }
 
-static word_t *clone_word(const word_t *word)
-{
+static word_t *clone_word(const word_t *word) {
     if (word == nullptr) {
         return nullptr;
     }
@@ -248,8 +231,7 @@ static word_t *clone_word(const word_t *word)
 
 static simple_command_t *
 clone_simple_command(const simple_command_t *simple_command,
-                     struct command_t *up)
-{
+                     struct command_t *up) {
     if (simple_command == nullptr) {
         return nullptr;
     }
@@ -264,8 +246,7 @@ clone_simple_command(const simple_command_t *simple_command,
     return copy;
 }
 
-static command_t *clone_command(const command_t *c, command_t *up)
-{
+static command_t *clone_command(const command_t *c, command_t *up) {
     if (c == nullptr) {
         return nullptr;
     }
@@ -278,8 +259,8 @@ static command_t *clone_command(const command_t *c, command_t *up)
     return copy;
 }
 
-static void parse_async(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait)
-{
+static void
+parse_async(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait) {
     auto args = new arg;
     args->c = clone_command(c, nullptr);
     args->hStdin = hStdin;
@@ -289,8 +270,7 @@ static void parse_async(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait)
     DIE(hThread == nullptr, "CreateThread");
 }
 
-DWORD parse_command(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait)
-{
+DWORD parse_command(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait) {
     switch (c->op) {
     case OP_NONE:
         return parse_simple(*c->scmd, hStdin, hStdout, wait);
