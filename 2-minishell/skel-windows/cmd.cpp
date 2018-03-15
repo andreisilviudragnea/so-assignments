@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <memory>
 #include "cmd.h"
 #include "utils.h"
 #include "parser.h"
@@ -48,9 +49,14 @@ static void close_err(HANDLE err, HANDLE out) {
     }
 }
 
+struct free_delete {
+    void operator()(void *x) { free(x); }
+};
+
 static HANDLE
-create_file(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
-            DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes) {
+create_file(LPCSTR lpFileName, DWORD dwDesiredAccess,
+            DWORD dwShareMode, DWORD dwCreationDisposition,
+            DWORD dwFlagsAndAttributes) {
     SECURITY_ATTRIBUTES sa;
     ZeroMemory(&sa, sizeof(sa));
     sa.bInheritHandle = TRUE;
@@ -61,55 +67,49 @@ create_file(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
 static void
 redirect(const simple_command_t &s, HANDLE &hStdInput, HANDLE &hStdOutput,
          HANDLE &hStdError) {
-    char *in = get_word(s.in);
+    std::unique_ptr<char, free_delete> in(get_word(s.in));
     if (in != nullptr) {
         close_in(hStdInput);
-        hStdInput = create_file(in, GENERIC_READ,
+        hStdInput = create_file(in.get(), GENERIC_READ,
                                 FILE_SHARE_READ | FILE_SHARE_WRITE,
                                 OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL);
-        free(in);
         DIE(hStdInput == INVALID_HANDLE_VALUE, "CreateFile in");
     }
 
-    char *out = get_word(s.out);
+    std::unique_ptr<char, free_delete> out(get_word(s.out));
     if (out != nullptr) {
         close_out(hStdOutput);
-        hStdOutput = create_file(out, GENERIC_WRITE | GENERIC_READ,
+        hStdOutput = create_file(out.get(), GENERIC_WRITE | GENERIC_READ,
                                  FILE_SHARE_WRITE | FILE_SHARE_READ,
                                  s.io_flags & IO_OUT_APPEND ? OPEN_ALWAYS
                                                             : CREATE_ALWAYS,
                                  FILE_ATTRIBUTE_NORMAL);
         DIE(hStdOutput == INVALID_HANDLE_VALUE, "CreateFile out");
+
+        if (s.io_flags & IO_OUT_APPEND) {
+            DWORD pos = SetFilePointer(hStdOutput, 0, nullptr, FILE_END);
+            DIE(pos == INVALID_SET_FILE_POINTER, "SetFilePointer out");
+        }
     }
 
-    if (s.io_flags & IO_OUT_APPEND) {
-        DWORD pos = SetFilePointer(hStdOutput, 0, nullptr, FILE_END);
-        DIE(pos == INVALID_SET_FILE_POINTER, "SetFilePointer out");
-    }
-
-    char *err = get_word(s.err);
+    std::unique_ptr<char, free_delete> err(get_word(s.err));
     if (err != nullptr) {
-//        close_err(hStdError, hStdOutput);
-        if (out != nullptr && strcmp(out, err) == 0) {
+        close_err(hStdError, hStdOutput);
+        if (out != nullptr && strcmp(out.get(), err.get()) == 0) {
             hStdError = hStdOutput;
         } else {
-            hStdError = create_file(err, GENERIC_WRITE | GENERIC_READ,
+            hStdError = create_file(err.get(), GENERIC_WRITE | GENERIC_READ,
                                     FILE_SHARE_WRITE | FILE_SHARE_READ,
                                     s.io_flags & IO_ERR_APPEND ? OPEN_ALWAYS
                                                                : CREATE_ALWAYS,
                                     FILE_ATTRIBUTE_NORMAL);
         }
-        free(err);
         DIE(hStdError == INVALID_HANDLE_VALUE, "CreateFile err");
-    }
 
-    if (out != nullptr) {
-        free(out);
-    }
-
-    if (s.io_flags & IO_ERR_APPEND) {
-        DWORD pos = SetFilePointer(hStdError, 0, nullptr, FILE_END);
-        DIE(pos == INVALID_SET_FILE_POINTER, "SetFilePointer err");
+        if (s.io_flags & IO_ERR_APPEND) {
+            DWORD pos = SetFilePointer(hStdError, 0, nullptr, FILE_END);
+            DIE(pos == INVALID_SET_FILE_POINTER, "SetFilePointer err");
+        }
     }
 }
 
