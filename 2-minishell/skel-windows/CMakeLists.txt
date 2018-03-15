@@ -3,5 +3,6 @@ add_executable(mini-shell
         main.c
         parser.tab.c
         parser.yy.c
-        utils-win.c
+        utils.h
+        utils-win.cpp
         )
