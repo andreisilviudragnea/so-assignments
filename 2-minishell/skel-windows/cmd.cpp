@@ -1,8 +1,9 @@
-#include <windows.h>
-#include <memory>
 #include "cmd.h"
-#include "utils.h"
 #include "parser.h"
+#include "utils.h"
+#include <iostream>
+#include <memory>
+#include <windows.h>
 
 static HANDLE
 create_process(LPSTR command, HANDLE hStdin, HANDLE hStdout, HANDLE hStdErr) {
@@ -20,8 +21,7 @@ create_process(LPSTR command, HANDLE hStdin, HANDLE hStdout, HANDLE hStdErr) {
     BOOL ret = CreateProcess(nullptr, command, nullptr, nullptr, TRUE, 0,
                              nullptr, nullptr, &si, &pi);
     if (ret == FALSE) {
-        fprintf(stderr, "Execution failed for '%s'\n", command);
-        fflush(stderr);
+        std::cerr << "Execution failed for '" << command << "'" << std::endl;
         return nullptr;
     }
 
@@ -119,34 +119,27 @@ static void close_handles(HANDLE in, HANDLE out, HANDLE err) {
 static DWORD
 execute(const simple_command_t &s, HANDLE hStdInput, HANDLE hStdOutput,
         HANDLE hStdError, HANDLE &hProcess) {
-    char *command = get_argv(&s);
-    DWORD ret;
+    std::unique_ptr<char, free_delete> command(get_argv(&s));
 
-    if (strcmp(command, "exit") == 0 || strcmp(command, "quit") == 0) {
-        ret = SHELL_EXIT;
-        goto exit;
+    if (strcmp(command.get(), "exit") == 0 ||
+        strcmp(command.get(), "quit") == 0) {
+        return SHELL_EXIT;
     }
 
     if (s.verb->next_part != nullptr &&
         strcmp(s.verb->next_part->string, "=") == 0) {
         BOOL bRet = SetEnvironmentVariable(s.verb->string,
                                            s.verb->next_part->next_part->string);
-        ret = bRet == FALSE ? EXIT_FAILURE : EXIT_SUCCESS;
-        goto exit;
+        return bRet == FALSE ? EXIT_FAILURE : EXIT_SUCCESS;
     }
 
     if (strcmp(get_word(s.verb), "cd") == 0) {
         BOOL bRet = SetCurrentDirectory(get_word(s.params));
-        ret = bRet == FALSE ? EXIT_FAILURE : EXIT_SUCCESS;
-        goto exit;
+        return bRet == FALSE ? EXIT_FAILURE : EXIT_SUCCESS;
     }
 
-    hProcess = create_process(command, hStdInput, hStdOutput, hStdError);
-    ret = hProcess == nullptr ? EXIT_FAILURE : EXIT_SUCCESS;
-
-exit:
-    free(command);
-    return ret;
+    hProcess = create_process(command.get(), hStdInput, hStdOutput, hStdError);
+    return hProcess == nullptr ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
 static DWORD
@@ -281,17 +274,15 @@ DWORD parse_command(command_t *c, HANDLE hStdin, HANDLE hStdout, bool wait) {
         DWORD ret = parse_command(c->cmd1, hStdin, hStdout, wait);
         if (ret == EXIT_SUCCESS) {
             return ret;
-        } else {
-            return parse_command(c->cmd2, hStdin, hStdout, wait);
         }
+        return parse_command(c->cmd2, hStdin, hStdout, wait);
     }
     case OP_CONDITIONAL_ZERO: {
         DWORD ret = parse_command(c->cmd1, hStdin, hStdout, wait);
         if (ret != EXIT_SUCCESS) {
             return ret;
-        } else {
-            return parse_command(c->cmd2, hStdin, hStdout, wait);
         }
+        return parse_command(c->cmd2, hStdin, hStdout, wait);
     }
     case OP_PIPE:
         return do_on_pipe(c->cmd1, c->cmd2, hStdin, hStdout);
