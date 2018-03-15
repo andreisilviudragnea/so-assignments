@@ -15,7 +15,7 @@
 
 #define MAX_SIZE_ENVIRONMENT_VARIABLE 512
 
-std::string get_word(word_t *s) {
+std::string get_word(const word_t *s) {
     std::string str;
 
     while (s != nullptr) {
@@ -38,10 +38,10 @@ std::string get_word(word_t *s) {
     return str;
 }
 
-std::string get_argv(const simple_command_t *command) {
-    std::string argv = get_word(command->verb);
+std::string get_argv(const simple_command_t &command) {
+    std::string argv = get_word(command.verb);
 
-    word_t *param = command->params;
+    word_t *param = command.params;
     while (param != nullptr) {
         std::string substring = get_word(param);
 

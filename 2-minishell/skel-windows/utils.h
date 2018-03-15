@@ -43,11 +43,11 @@ static VOID PrintLastError(const char *message) {
 /**
  * Concatenate parts of the word to obtain the command
  */
-std::string get_word(word_t *s);
+std::string get_word(const word_t *s);
 
 /**
  * Parse arguments in order to succesfully process them using CreateProcess
  */
-std::string get_argv(const simple_command_t *command);
+std::string get_argv(const simple_command_t &command);
 
 #endif /* _UTILS_H */

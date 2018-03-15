@@ -52,9 +52,8 @@ static void close_err(HANDLE err, HANDLE out) {
 }
 
 static HANDLE
-create_file(LPCSTR lpFileName, DWORD dwDesiredAccess,
-            DWORD dwShareMode, DWORD dwCreationDisposition,
-            DWORD dwFlagsAndAttributes) {
+create_file(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
+            DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes) {
     SECURITY_ATTRIBUTES sa;
     ZeroMemory(&sa, sizeof(sa));
     sa.bInheritHandle = TRUE;
@@ -80,7 +79,7 @@ static HANDLE create_out(const char *filename, bool append) {
 static void
 redirect(const simple_command_t &s, HANDLE &hStdInput, HANDLE &hStdOutput,
          HANDLE &hStdError) {
-    std::string in = get_word(s.in);
+    std::string in(get_word(s.in));
     if (!in.empty()) {
         close_in(hStdInput);
         hStdInput = create_file(in.c_str(), GENERIC_READ,
@@ -89,14 +88,14 @@ redirect(const simple_command_t &s, HANDLE &hStdInput, HANDLE &hStdOutput,
         DIE(hStdInput == INVALID_HANDLE_VALUE, "CreateFile in");
     }
 
-    std::string out = get_word(s.out);
+    std::string out(get_word(s.out));
     if (!out.empty()) {
         close_out(hStdOutput);
         hStdOutput = create_out(out.c_str(),
                                 static_cast<bool>(s.io_flags & IO_OUT_APPEND));
     }
 
-    std::string err = get_word(s.err);
+    std::string err(get_word(s.err));
     if (!err.empty()) {
         close_err(hStdError, hStdOutput);
         if (!out.empty() && out == err) {
@@ -117,7 +116,7 @@ static void close_handles(HANDLE in, HANDLE out, HANDLE err) {
 static DWORD
 execute(const simple_command_t &s, HANDLE hStdInput, HANDLE hStdOutput,
         HANDLE hStdError, HANDLE &hProcess) {
-    std::string command = get_argv(&s);
+    std::string command(get_argv(s));
 
     if (command == "exit" || command == "quit") {
         return SHELL_EXIT;
