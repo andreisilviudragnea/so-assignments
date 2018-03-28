@@ -191,7 +191,7 @@ extern "C"
  was discovered (the character number, starting at 0)
 */
 
-void parse_error(const char *str, const int where);
+void parse_error(const char *str, int where);
 
 
 /*

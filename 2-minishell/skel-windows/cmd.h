@@ -1,10 +1,3 @@
-/**
- * Operating Sytems 2013-2017 - Assignment 2
- *
- * TODO Name, Group
- *
- */
-
 #ifndef _CMD_H
 #define _CMD_H
 
@@ -17,9 +10,6 @@
 extern "C" {
 #endif
 
-/**
- * Parse and execute a command.
- */
 DWORD parse_command(command_t *cmd, HANDLE hStdin, HANDLE hStdout, bool wait);
 
 #ifdef __cplusplus
